@@ -114,3 +114,20 @@ Each subsequent entry must include:
 - Boundary review: an earlier implementation used an inclusive end condition. It was
   changed to `< window_end` so overview and trend buckets cannot disagree at the boundary.
 - G1 commit: `e209da5`. The G2 commit SHA is added in the G3 entry after commit.
+
+## 2026-09-01 22:03 +08:00 - G3 clean-environment CI definition
+
+- Base commit: `d97aa8a`; responsible Agent: Online subagent for the workflow, main Agent
+  for review, remote execution and evidence.
+- Workflow: Ubuntu latest, Python 3.11, uv dependency cache, `uv sync --frozen`,
+  `ruff check .`, `pytest`, and `microlens smoke`.
+- Isolation: no official MicroLens download, Release artifact, existing SQLite database,
+  `.env`, credentials or paid service is available to the job. Smoke creates its own
+  temporary data and artifact.
+- Safety: workflow permissions are read-only; concurrent superseded runs on the same ref
+  are cancelled; timeout is 20 minutes; OpenBLAS is limited to one thread.
+- Local evidence before commit: full pytest 30 passed, Ruff passed, synthetic offline and
+  online smoke passed, and `git diff --check` passed.
+- G2 commit: `d97aa8a`. Remote Actions URL, conclusion, duration and G3 commit SHA are
+  intentionally pending until the pushed workflow finishes; they must be added before G3
+  is marked complete.

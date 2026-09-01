@@ -14,9 +14,6 @@ All notable changes, compatibility notes, and verification evidence are recorded
   diagnostics, feed shares, and hot items.
 - Add an API-driven, zero-filled trend series and responsive dependency-free SVG chart for
   requests, exposures, clicks, likes, and CTR.
-
-### Planned
-
 - Add GitHub Actions checks for locked dependencies, lint, tests, and synthetic smoke.
 
 ### Compatibility
@@ -30,6 +27,8 @@ All notable changes, compatibility notes, and verification evidence are recorded
   pipeline selected BM25 on validation NDCG@20.
 - G2: 30 tests passed; desktop and 390px browser checks rendered a nonblank 12-point 6h
   trend with no horizontal overflow or browser console errors.
+- G3 local: the CI contract runs on Ubuntu/Python 3.11 without official data, model
+  downloads, database state, or secrets. The remote result is recorded after push.
 
 ## [0.1.0] - 2026-09-01
 
