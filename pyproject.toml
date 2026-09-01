@@ -1,0 +1,52 @@
+[project]
+name = "microlens-recsys-mvp"
+version = "0.1.0"
+description = "A reproducible MicroLens-50K recommendation system MVP."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi==0.141.1",
+  "httpx>=0.28,<1",
+  "implicit==0.7.3",
+  "itsdangerous>=2.2,<3",
+  "jinja2>=3.1,<4",
+  "numpy>=2.0,<3",
+  "pandas>=2.2,<3",
+  "pwdlib[argon2]>=0.3,<1",
+  "pydantic-settings>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "scipy>=1.14,<2",
+  "sqladmin==0.31.1",
+  "sqlmodel>=0.0.39,<0.1",
+  "typer>=0.16,<1",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<8",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+microlens = "recsys.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "recsys"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+

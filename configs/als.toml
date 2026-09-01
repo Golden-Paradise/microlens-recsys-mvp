@@ -1,0 +1,16 @@
+[data]
+seed = 42
+validation_items_per_user = 1
+test_items_per_user = 1
+
+[model]
+factors = [32, 64]
+iterations = 12
+regularization = 0.05
+alpha = 20.0
+top_k = 20
+
+[serving]
+page_size = 12
+candidate_pool_size = 200
+
