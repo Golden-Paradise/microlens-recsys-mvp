@@ -97,6 +97,29 @@ its decision, commands, result, failure and fix before the corresponding commit 
   Existing warnings remain limited to upstream Starlette TestClient deprecation and implicit
   synthetic BLAS/COO conversion notices.
 
+### 2026-09-02 01:25 +08:00 - G3 recommendation decision evidence
+
+- Added unframed Dashboard section bands for runtime publish/rollback, validation-first model
+  evidence, Feed build P50/P95/fallback health, and recent recommendation request traces.
+- Model evidence shows overall, warm, and pure-cold slices. A missing Test payload is rendered
+  as `not formally tested`, rather than implying that the policy is disabled. Validation and
+  frozen Test remain visually and semantically distinct.
+- Frontend review found that the first implementation paired health with the request list,
+  while request details still lived in an older section above. The request section now uses a
+  true desktop list/detail grid and a stacked mobile layout; selecting a keyboard-accessible
+  request row renders ordered exposures plus the complete event timeline in place. Manual
+  UUID lookup remains in the same detail pane.
+- Frontend review also replaced the hidden `/api/admin/requests` list alias with the canonical
+  `/api/admin/request-traces` endpoint, distinguishes fewer than 20 samples from a healthy
+  no-alert state, and reports click/like/not-interested rates with exposures as their shared
+  denominator instead of drawing a false strict funnel.
+- Removed border, background, and shadow from the outer operations panels so metric tiles and
+  tables are not nested inside decorative cards. Desktop table overflow and the 780/480 px
+  stacking rules remain explicit.
+- Static verification: UI/contract tests, the 68-test integrated suite, Ruff, Node syntax, and
+  diff checks passed. Browser verification at 1280x720 and 390x844 is still pending and is not
+  replaced by source-string assertions.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.

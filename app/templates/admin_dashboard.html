@@ -77,12 +77,6 @@
       <div id="hot-items" class="data-region"></div>
     </div>
   </div>
-  <form id="request-trace-form" class="inline-form trace-form">
-    <label for="trace-request-id">请求 ID</label>
-    <input id="trace-request-id" name="request_id" required minlength="36" maxlength="36" placeholder="输入 Feed 顶部展示的 request_id">
-    <button class="button button-secondary" type="submit">查询链路</button>
-  </form>
-  <div id="request-trace-result" class="data-region muted">可按请求 ID 查看曝光顺序与后续行为。</div>
 </section>
 
 <section class="section-band" aria-labelledby="user-debug-title">
@@ -95,8 +89,123 @@
   <div id="user-debug-result" class="data-region muted">输入用户 ID 查看画像、行为与推荐上下文。</div>
 </section>
 
-<section class="section-band" aria-labelledby="model-title">
-  <div class="section-heading"><h2 id="model-title">模型运行</h2></div>
-  <div id="model-list" class="data-region"></div>
+<section class="section-band reliability-section" aria-labelledby="model-title">
+  <div class="section-heading">
+    <div>
+      <h2 id="model-title">模型运行与发布</h2>
+      <span class="muted">单进程运行状态与可回滚版本</span>
+    </div>
+  </div>
+  <div class="reliability-grid">
+    <article class="ops-panel" aria-labelledby="runtime-title">
+      <div class="ops-panel-heading">
+        <h3 id="runtime-title">运行状态</h3>
+        <span id="runtime-status-badge" class="runtime-badge is-loading">加载中</span>
+      </div>
+      <div id="model-runtime" class="async-region" data-state="loading" aria-live="polite">
+        <div class="compact-state">正在读取运行状态…</div>
+      </div>
+    </article>
+
+    <article class="ops-panel" aria-labelledby="release-title">
+      <div class="ops-panel-heading">
+        <h3 id="release-title">版本操作</h3>
+        <span class="muted">人工确认后切换</span>
+      </div>
+      <div class="release-controls">
+        <label for="publish-model-version">候选模型</label>
+        <div class="release-action-row">
+          <select id="publish-model-version" disabled aria-describedby="release-help">
+            <option value="">正在读取候选版本…</option>
+          </select>
+          <button id="publish-model-button" class="button button-primary" type="button" disabled>发布</button>
+          <button id="rollback-model-button" class="button button-secondary" type="button" disabled>回滚</button>
+        </div>
+        <p id="release-help" class="control-help">发布失败不会替换当前运行模型。</p>
+        <div id="model-operation-status" class="operation-status" data-state="idle" aria-live="assertive" hidden></div>
+      </div>
+      <div id="model-list" class="model-registry async-region" data-state="loading">
+        <div class="compact-state">正在读取模型版本…</div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section-band" aria-labelledby="decision-title">
+  <div class="section-heading">
+    <div>
+      <h2 id="decision-title">模型决策表</h2>
+      <span id="model-decision-meta" class="muted">Validation 选型与冻结后的 Test 结果</span>
+    </div>
+  </div>
+  <div id="model-decision-table" class="async-region" data-state="loading" aria-live="polite">
+    <div class="compact-state">正在读取评估证据…</div>
+  </div>
+</section>
+
+<section class="section-band" aria-labelledby="reliability-title">
+  <div class="section-heading">
+    <div>
+      <h2 id="reliability-title">在线可靠性</h2>
+      <span class="muted">Feed 构建延迟与 fallback 被动告警</span>
+    </div>
+  </div>
+  <div class="health-layout">
+    <article class="ops-panel" aria-labelledby="health-title">
+      <div class="ops-panel-heading">
+        <h3 id="health-title">运行健康</h3>
+        <span id="health-window-meta" class="muted">近24小时</span>
+      </div>
+      <div id="observability-health" class="async-region" data-state="loading" aria-live="polite">
+        <div class="compact-state">正在计算延迟与回退率…</div>
+      </div>
+      <div class="health-group-grid">
+        <div>
+          <h4>按信息流</h4>
+          <div id="observability-by-feed" class="async-region compact-region" data-state="loading"></div>
+        </div>
+        <div>
+          <h4>按模型</h4>
+          <div id="observability-by-model" class="async-region compact-region" data-state="loading"></div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section class="section-band" aria-labelledby="recent-requests-title">
+  <div class="section-heading">
+    <div>
+      <h2 id="recent-requests-title">最近推荐请求</h2>
+      <span class="muted">行为率均以曝光为共同分母；选择请求查看完整曝光与事件链路</span>
+    </div>
+    <span id="request-timeline-meta" class="muted">近24小时</span>
+  </div>
+  <div class="request-detail-grid">
+    <article class="ops-panel" aria-labelledby="request-list-title">
+      <div class="ops-panel-heading">
+        <h3 id="request-list-title">请求列表</h3>
+        <span class="muted">点击一行查看</span>
+      </div>
+      <div id="request-timeline" class="async-region" data-state="loading" aria-live="polite">
+        <div class="compact-state">正在读取请求时间线…</div>
+      </div>
+    </article>
+    <article class="ops-panel request-detail-panel" aria-labelledby="request-detail-title">
+      <div class="ops-panel-heading">
+        <h3 id="request-detail-title">请求详情</h3>
+        <span class="muted">曝光顺序与后续事件</span>
+      </div>
+      <form id="request-trace-form" class="inline-form trace-form">
+        <label for="trace-request-id">请求 ID</label>
+        <input id="trace-request-id" name="request_id" required minlength="36" maxlength="36" placeholder="输入 request_id">
+        <button class="button button-secondary" type="submit">查询链路</button>
+      </form>
+      <div id="request-trace-result" class="async-region request-detail-result muted" data-state="empty" aria-live="polite">
+        选择左侧请求，或输入 UUID 查询链路。
+      </div>
+    </article>
+  </div>
 </section>
 {% endblock %}

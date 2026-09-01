@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,8 @@ from fastapi.testclient import TestClient
 from app.admin import READ_ONLY_VIEWS, configure_read_only_admin
 from app.database import Database
 from app.web import STATIC_DIR, TEMPLATE_DIR, register_web
+
+V03_CONTRACT_PATH = Path(__file__).parent / "fixtures" / "v03_admin_contracts.json"
 
 
 @pytest.fixture
@@ -110,6 +113,94 @@ def test_dashboard_window_and_trend_contract_is_wired_to_api() -> None:
     assert ".trend-stage" in styles
     assert "height: 320px" in styles
     assert "height: 260px" in styles
+
+
+def test_v03_admin_reliability_contract_is_wired_to_isolated_regions() -> None:
+    fixture = json.loads(V03_CONTRACT_PATH.read_text(encoding="utf-8"))
+    dashboard = (TEMPLATE_DIR / "admin_dashboard.html").read_text(encoding="utf-8")
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+
+    assert all(
+        marker in dashboard
+        for marker in (
+            "model-runtime",
+            "publish-model-button",
+            "rollback-model-button",
+            "model-operation-status",
+            "model-decision-table",
+            "observability-health",
+            "observability-by-feed",
+            "observability-by-model",
+            "request-timeline",
+            "request-trace-result",
+        )
+    )
+    assert all(
+        path in script
+        for path in (
+            "/api/admin/models/runtime",
+            "/api/admin/models/current/evaluation",
+            "/api/admin/request-traces",
+            "/api/admin/observability",
+            "/api/admin/models/rollback",
+            "/publish",
+        )
+    )
+    assert all(
+        state in script
+        for state in (
+            "loading",
+            "empty",
+            "error",
+            "ready",
+            "legacy",
+            "recovered",
+            "fallback",
+            "publishing",
+            "published",
+            "publish_failed",
+            "rolling_back",
+            "rolled_back",
+            "rollback_failed",
+        )
+    )
+    assert fixture["runtime"]["status"] in {"ready", "recovered", "fallback"}
+    assert fixture["evaluation"]["policies"]
+    assert fixture["request_traces"]["items"]
+    assert "latency_ms" in fixture["observability"]
+    assert all(
+        key in script
+        for key in (
+            "selected_policy",
+            "selection_metric",
+            "pure_cold",
+            "feed_build_latency_ms",
+            "fallback_reason",
+            "latency_ms",
+            "alerts",
+        )
+    )
+    assert "Promise.allSettled" in script
+    assert "request-timeline-button" in script
+    assert "loadRequestTrace" in script
+    assert "renderRequestTraceDetail" in script
+    assert "未正式测试" in script
+    assert "样本不足，暂不判断告警" in script
+    assert "count / exposureCount" in script
+
+
+def test_v03_dashboard_is_two_column_and_stacks_for_390px() -> None:
+    styles = (STATIC_DIR / "app.css").read_text(encoding="utf-8")
+
+    assert ".reliability-grid" in styles
+    assert ".request-detail-grid" in styles
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in styles
+    assert "grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr)" in styles
+    assert "@media (max-width: 780px)" in styles
+    assert "@media (max-width: 480px)" in styles
+    assert "grid-template-columns: 1fr" in styles
+    assert "min-width: 0" in styles
+    assert "box-shadow: var(--shadow)" not in styles.split(".ops-panel {", 1)[1].split("}", 1)[0]
 
 
 def test_sqladmin_views_are_read_only_and_authenticated() -> None:

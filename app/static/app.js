@@ -496,6 +496,384 @@ function setupProfile() {
   loadProfile();
 }
 
+const RELIABILITY_API = Object.freeze({
+  runtime: "/api/admin/models/runtime",
+  evaluation: "/api/admin/models/current/evaluation",
+  requests: "/api/admin/request-traces",
+  observability: "/api/admin/observability",
+  rollback: "/api/admin/models/rollback",
+});
+
+const OPERATION_MESSAGES = Object.freeze({
+  publishing: "发布中：正在校验并加载候选模型…",
+  published: "发布成功：新请求已切换到目标模型。",
+  publish_failed: "发布失败：当前运行模型保持不变。",
+  rolling_back: "回滚中：正在恢复上一稳定版本…",
+  rolled_back: "回滚成功：新请求已使用上一稳定版本。",
+  rollback_failed: "回滚失败：当前运行模型保持不变。",
+});
+
+function setAsyncRegionState(target, mode, message) {
+  const region = typeof target === "string" ? select(target) : target;
+  if (!region) return;
+  region.dataset.state = mode;
+  region.replaceChildren(element("div", "compact-state", message));
+}
+
+function formatAdminTime(value) {
+  return formatTrendTime(value, true);
+}
+
+function formatRate(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `${(numeric * 100).toFixed(2)}%` : "--";
+}
+
+function formatLatency(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `${numeric.toFixed(1)} ms` : "--";
+}
+
+function dashboardWindowLabel(windowName) {
+  return { "1h": "近1小时", "6h": "近6小时", "24h": "近24小时", all: "全部历史" }[windowName]
+    || String(windowName || "当前范围");
+}
+
+function metricTriplet(metrics, missingLabel) {
+  if (!metrics) return element("span", "muted", missingLabel);
+  const group = element("div", "metric-triplet");
+  [
+    ["R@20", metrics.recall_at_20],
+    ["N@20", metrics.ndcg_at_20],
+    ["C@20", metrics.coverage_at_20],
+  ].forEach(([label, value]) => {
+    const row = element("span");
+    const numeric = Number(value);
+    row.append(`${label} `, element("strong", "", Number.isFinite(numeric) ? numeric.toFixed(4) : "--"));
+    group.append(row);
+  });
+  return group;
+}
+
+function renderModelDecision(payload) {
+  const target = select("#model-decision-table");
+  const policies = Array.isArray(payload?.policies) ? payload.policies : [];
+  if (!policies.length) {
+    setAsyncRegionState(target, "empty", "当前模型没有可展示的评估记录。");
+    return;
+  }
+
+  const meta = select("#model-decision-meta");
+  meta.textContent = (
+    `${payload.model_version || "未知版本"} · 选型指标 ${payload.selection_metric || "--"}`
+    + ` · 当前策略 ${payload.selected_policy || "--"}`
+  );
+
+  const wrap = element("div", "table-wrap");
+  const table = element("table", "data-table decision-table");
+  const head = element("thead");
+  const headRow = element("tr");
+  [
+    "策略", "选型", "Validation / Overall", "Validation / Warm",
+    "Validation / Pure cold", "Test / Overall", "Test / Warm", "Test / Pure cold",
+  ].forEach((label) => headRow.append(element("th", "", label)));
+  head.append(headRow);
+  const body = element("tbody");
+  policies.forEach((policy) => {
+    const row = element("tr", policy.selected ? "is-selected" : "");
+    row.append(element("td", "", policy.policy || "--"));
+    const decision = element("td");
+    decision.append(element(
+      "span",
+      `decision-badge ${policy.selected ? "is-selected" : "is-rejected"}`,
+      policy.selected ? "已选" : "未选",
+    ));
+    row.append(decision);
+    [
+      [policy.validation?.overall, "Validation 数据缺失"],
+      [policy.validation?.warm, "Validation 数据缺失"],
+      [policy.validation?.pure_cold, "Validation 数据缺失"],
+      [policy.test?.overall, "未正式测试"],
+      [policy.test?.warm, "未正式测试"],
+      [policy.test?.pure_cold, "未正式测试"],
+    ].forEach(([metrics, missingLabel]) => {
+      const cell = element("td");
+      cell.append(metricTriplet(metrics, missingLabel));
+      row.append(cell);
+    });
+    body.append(row);
+  });
+  table.append(head, body);
+  wrap.append(table);
+  target.dataset.state = "ready";
+  target.replaceChildren(wrap);
+}
+
+function runtimePresentation(payload) {
+  const runtimeState = ["ready", "recovered", "fallback"].includes(payload?.status)
+    ? payload.status
+    : "fallback";
+  if (runtimeState === "ready" && payload?.validation?.status === "legacy_unverified") {
+    return ["legacy", "旧版未校验"];
+  }
+  const labels = { ready: "运行正常", recovered: "已恢复", fallback: "Fallback 运行" };
+  return [runtimeState, labels[runtimeState]];
+}
+
+function renderRuntime(payload, dashboardState) {
+  const target = select("#model-runtime");
+  const badge = select("#runtime-status-badge");
+  const [presentation, label] = runtimePresentation(payload);
+  target.dataset.state = presentation;
+  badge.className = `runtime-badge is-${presentation}`;
+  badge.textContent = label;
+
+  const current = payload.current;
+  const previous = payload.previous;
+  const summary = element("dl", "runtime-summary");
+  [
+    ["当前版本", current?.model_version || "确定性 fallback"],
+    ["服务策略", current?.serving_policy || "deterministic"],
+    ["上一版本", previous?.model_version || "无可回滚版本"],
+    ["加载时间", formatAdminTime(payload.loaded_at)],
+  ].forEach(([term, value]) => {
+    const field = element("div", "runtime-field");
+    field.append(element("dt", "", term), element("dd", "", value));
+    summary.append(field);
+  });
+
+  const validation = payload.validation || {};
+  const errors = Array.isArray(validation.errors) ? validation.errors.filter(Boolean) : [];
+  const validationClass = validation.status === "error"
+    ? "is-error"
+    : validation.status === "legacy_unverified" ? "is-warning" : "";
+  const validationLabels = {
+    ok: "Artifact 校验通过",
+    legacy_unverified: "Legacy artifact：缺少完整 checksum 证据",
+    error: "Artifact 校验失败",
+  };
+  const validationNote = element("p", `runtime-validation ${validationClass}`.trim());
+  validationNote.textContent = (
+    `${validationLabels[validation.status] || "Artifact 状态未知"}`
+    + ` · ${formatAdminTime(validation.checked_at)}`
+    + (errors.length ? ` · ${errors.join("；")}` : "")
+  );
+  target.replaceChildren(summary, validationNote);
+  dashboardState.runtime = payload;
+}
+
+function renderModelRegistry(payload, dashboardState) {
+  const target = select("#model-list");
+  const records = Array.isArray(payload) ? payload : (payload?.items || []);
+  dashboardState.models = records;
+  if (!records.length) {
+    setAsyncRegionState(target, "empty", "当前没有可发布的模型版本。");
+  } else {
+    target.dataset.state = "ready";
+    renderRecord(target, records);
+  }
+
+  const selector = select("#publish-model-version");
+  const currentVersion = dashboardState.runtime?.current?.model_version;
+  const selectedBefore = selector.value;
+  const candidates = records.filter((record) => {
+    const version = record.id || record.model_version;
+    return version && version !== currentVersion && record.status !== "published";
+  });
+  selector.replaceChildren();
+  if (!candidates.length) {
+    selector.append(element("option", "", "没有可发布的候选版本"));
+    selector.value = "";
+  } else {
+    candidates.forEach((record) => {
+      const version = record.id || record.model_version;
+      const option = element("option", "", `${version} · ${record.status || "candidate"}`);
+      option.value = version;
+      selector.append(option);
+    });
+    if (candidates.some((record) => (record.id || record.model_version) === selectedBefore)) {
+      selector.value = selectedBefore;
+    }
+  }
+  dashboardState.candidates = candidates;
+}
+
+function renderObservabilityGroups(target, groups) {
+  if (!Array.isArray(groups) || !groups.length) {
+    setAsyncRegionState(target, "empty", "暂无分组请求。");
+    return;
+  }
+  const list = element("dl", "health-group-list");
+  groups.forEach((group) => {
+    const row = element("div", "health-group-row");
+    row.append(
+      element("dt", "", group.key || "--"),
+      element("dd", "", `${Number(group.requests || 0).toLocaleString()} 次`),
+      element("dd", "", `回退 ${formatRate(group.fallback_rate)}`),
+      element("dd", "", `P95 ${formatLatency(group.latency_ms?.p95)}`),
+    );
+    list.append(row);
+  });
+  target.dataset.state = "ready";
+  target.replaceChildren(list);
+}
+
+function renderObservability(payload) {
+  const target = select("#observability-health");
+  const latency = payload.latency_ms || {};
+  const metrics = element("div", "health-metrics");
+  [
+    ["请求", Number(payload.requests || 0).toLocaleString()],
+    ["Fallback", `${Number(payload.fallback_count || 0).toLocaleString()} · ${formatRate(payload.fallback_rate)}`],
+    ["P50", formatLatency(latency.p50)],
+    ["P95", formatLatency(latency.p95)],
+  ].forEach(([label, value]) => {
+    const item = element("div", "health-metric");
+    item.append(element("span", "", label), element("strong", "", value));
+    metrics.append(item);
+  });
+
+  const alerts = element("ul", "health-alerts");
+  const alertItems = Array.isArray(payload.alerts) ? payload.alerts : [];
+  const requestCount = Number(payload.requests || 0);
+  if (requestCount < 20) {
+    alerts.append(element(
+      "li",
+      "is-insufficient",
+      `样本不足，暂不判断告警 · ${requestCount}/20 个请求 · 最大延迟 ${formatLatency(latency.max)}`,
+    ));
+  } else if (!alertItems.length) {
+    alerts.append(element("li", "is-healthy", `未触发被动告警 · 最大延迟 ${formatLatency(latency.max)}`));
+  } else {
+    alertItems.forEach((alert) => alerts.append(element("li", "", alert.message || alert.code)));
+  }
+  target.dataset.state = "ready";
+  target.replaceChildren(metrics, alerts);
+  select("#health-window-meta").textContent = dashboardWindowLabel(payload.window);
+  renderObservabilityGroups(select("#observability-by-feed"), payload.by_feed);
+  renderObservabilityGroups(select("#observability-by-model"), payload.by_model);
+}
+
+function renderRequestTimeline(payload, onSelect) {
+  const target = select("#request-timeline");
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  select("#request-timeline-meta").textContent = dashboardWindowLabel(payload?.window);
+  if (!items.length) {
+    setAsyncRegionState(target, "empty", "当前范围暂无推荐请求。");
+    return;
+  }
+
+  const timeline = element("ol", "request-timeline");
+  items.forEach((item) => {
+    const hasFallback = Boolean(item.fallback_reason);
+    const entry = element("li", `request-timeline-item ${hasFallback ? "has-fallback" : ""}`.trim());
+    const selectButton = element("button", "request-timeline-button");
+    selectButton.type = "button";
+    selectButton.title = "查看该请求的曝光与行为详情";
+    selectButton.setAttribute("aria-pressed", "false");
+    const heading = element("div", "trace-heading");
+    const requestId = element("code", "", item.request_id || "--");
+    requestId.title = item.request_id || "";
+    heading.append(
+      requestId,
+      element("span", `trace-badge ${hasFallback ? "is-fallback" : ""}`.trim(), hasFallback ? "Fallback" : "正常"),
+    );
+    const meta = element("div", "trace-meta");
+    meta.append(
+      element("span", "", formatAdminTime(item.created_at)),
+      element("span", "", item.username || "--"),
+      element("span", "", item.feed_type || "--"),
+      element("span", "", item.model_version || "--"),
+      element("span", "", formatLatency(item.feed_build_latency_ms)),
+    );
+    const counts = element("div", "trace-counts");
+    const exposureCount = Number(item.exposures || 0);
+    const behaviorLabel = (label, value) => {
+      const count = Number(value || 0);
+      return `${label} ${count} · ${exposureCount ? formatRate(count / exposureCount) : "--"}`;
+    };
+    counts.append(
+      element("span", "", `曝光 ${exposureCount}`),
+      element("span", "", behaviorLabel("点击", item.clicks)),
+      element("span", "", behaviorLabel("点赞", item.likes)),
+      element("span", "", behaviorLabel("不感兴趣", item.not_interested)),
+    );
+    selectButton.append(heading, meta, counts);
+    if (hasFallback) {
+      selectButton.append(element("p", "trace-fallback-reason", `原因：${item.fallback_reason}`));
+    }
+    selectButton.addEventListener("click", () => {
+      selectAll(".request-timeline-button").forEach((button) => {
+        button.setAttribute("aria-pressed", "false");
+      });
+      selectButton.setAttribute("aria-pressed", "true");
+      onSelect(item.request_id);
+    });
+    entry.append(selectButton);
+    timeline.append(entry);
+  });
+  target.dataset.state = "ready";
+  target.replaceChildren(timeline);
+}
+
+function renderRequestTraceDetail(payload) {
+  const target = select("#request-trace-result");
+  const request = payload?.request || {};
+  const exposures = Array.isArray(payload?.exposures) ? payload.exposures : [];
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  const summary = element("dl", "trace-detail-summary");
+  [
+    ["请求 ID", request.id || "--"],
+    ["Feed", request.feed_type || "--"],
+    ["模型", request.model_version || "--"],
+    ["构建延迟", formatLatency(request.latency_ms)],
+    ["创建时间", formatAdminTime(request.created_at)],
+    ["Fallback", request.fallback_reason || "无"],
+  ].forEach(([term, value]) => {
+    const field = element("div", "trace-detail-field");
+    field.append(element("dt", "", term), element("dd", "", value));
+    summary.append(field);
+  });
+
+  const exposureSection = element("section", "trace-detail-section");
+  exposureSection.append(element("h4", "", `曝光顺序 · ${exposures.length}`));
+  if (!exposures.length) {
+    exposureSection.append(element("p", "muted", "该请求没有曝光记录。"));
+  } else {
+    const exposureList = element("ol", "trace-detail-timeline");
+    exposures.forEach((exposure) => {
+      const row = element("li");
+      row.append(
+        element("strong", "", `#${exposure.position ?? "--"} · Item ${exposure.item_id ?? "--"}`),
+        element("span", "", `${exposure.source || "--"} · 分数 ${Number(exposure.score || 0).toFixed(4)}`),
+        element("span", "", exposure.reason || "无推荐理由"),
+      );
+      exposureList.append(row);
+    });
+    exposureSection.append(exposureList);
+  }
+
+  const eventSection = element("section", "trace-detail-section");
+  eventSection.append(element("h4", "", `事件时间线 · ${events.length}`));
+  if (!events.length) {
+    eventSection.append(element("p", "muted", "该请求尚无后续事件。"));
+  } else {
+    const eventList = element("ol", "trace-detail-timeline event-timeline");
+    events.forEach((event) => {
+      const row = element("li");
+      row.append(
+        element("strong", "", `${humanizeKey(event.event_type)} · Item ${event.item_id ?? "--"}`),
+        element("span", "", `${formatAdminTime(event.created_at)} · 位置 ${event.position ?? "--"}`),
+      );
+      eventList.append(row);
+    });
+    eventSection.append(eventList);
+  }
+  target.classList.remove("muted");
+  target.dataset.state = "ready";
+  target.replaceChildren(summary, exposureSection, eventSection);
+}
+
 function setupDashboard() {
   const overview = select("#overview-metrics");
   if (!overview) return;
@@ -504,6 +882,11 @@ function setupDashboard() {
     metric: "requests",
     trends: null,
     requestVersion: 0,
+    reliabilityRequestVersion: 0,
+    runtime: null,
+    models: [],
+    candidates: [],
+    operationState: "idle",
   };
 
   function showTrendState(mode, message = "") {
@@ -603,13 +986,143 @@ function setupDashboard() {
     setAggregateControlsDisabled(false);
   }
 
-  async function loadModels() {
-    const target = select("#model-list");
+  function updateOperationControls() {
+    const pending = ["publishing", "rolling_back"].includes(state.operationState);
+    const selector = select("#publish-model-version");
+    const publish = select("#publish-model-button");
+    const rollback = select("#rollback-model-button");
+    selector.disabled = pending || !state.candidates.length;
+    publish.disabled = pending || !selector.value;
+    rollback.disabled = pending || !state.runtime?.previous;
+    publish.textContent = state.operationState === "publishing" ? "发布中…" : "发布";
+    rollback.textContent = state.operationState === "rolling_back" ? "回滚中…" : "回滚";
+    publish.setAttribute("aria-busy", state.operationState === "publishing" ? "true" : "false");
+    rollback.setAttribute("aria-busy", state.operationState === "rolling_back" ? "true" : "false");
+  }
+
+  function setOperationStatus(operationState, detail = "") {
+    state.operationState = operationState;
+    const target = select("#model-operation-status");
+    target.dataset.state = operationState;
+    target.textContent = `${OPERATION_MESSAGES[operationState] || ""}${detail ? ` ${detail}` : ""}`.trim();
+    target.hidden = operationState === "idle";
+    updateOperationControls();
+  }
+
+  function setReliabilityLoading() {
+    select("#runtime-status-badge").className = "runtime-badge is-loading";
+    select("#runtime-status-badge").textContent = "加载中";
+    setAsyncRegionState("#model-runtime", "loading", "正在读取运行状态…");
+    setAsyncRegionState("#model-list", "loading", "正在读取模型版本…");
+    setAsyncRegionState("#model-decision-table", "loading", "正在读取评估证据…");
+    setAsyncRegionState("#observability-health", "loading", "正在计算延迟与回退率…");
+    setAsyncRegionState("#observability-by-feed", "loading", "正在读取…");
+    setAsyncRegionState("#observability-by-model", "loading", "正在读取…");
+    setAsyncRegionState("#request-timeline", "loading", "正在读取请求时间线…");
+  }
+
+  async function loadRequestTrace(requestId) {
+    const target = select("#request-trace-result");
+    select("#trace-request-id").value = requestId || "";
+    setAsyncRegionState(target, "loading", "正在查询请求链路…");
     try {
-      const models = await api("/api/admin/models");
-      renderRecord(target, models.items || models);
+      const result = await api(`/api/admin/requests/${encodeURIComponent(requestId)}`);
+      renderRequestTraceDetail(result);
     } catch (error) {
-      showRegionError(target, error.message || "模型列表读取失败");
+      setAsyncRegionState(target, "error", error.message || "请求链路读取失败");
+    }
+  }
+
+  async function loadReliabilityDashboard() {
+    const requestVersion = state.reliabilityRequestVersion + 1;
+    state.reliabilityRequestVersion = requestVersion;
+    setReliabilityLoading();
+    const query = `window=${encodeURIComponent(state.window)}`;
+    const results = await Promise.allSettled([
+      api(RELIABILITY_API.runtime),
+      api(RELIABILITY_API.evaluation),
+      api(`${RELIABILITY_API.requests}?${query}`),
+      api(`${RELIABILITY_API.observability}?${query}`),
+      api("/api/admin/models"),
+    ]);
+    if (requestVersion !== state.reliabilityRequestVersion) return;
+
+    const [runtimeResult, evaluationResult, requestsResult, observabilityResult, modelsResult] = results;
+    if (runtimeResult.status === "fulfilled") {
+      renderRuntime(runtimeResult.value, state);
+    } else {
+      state.runtime = null;
+      const message = runtimeResult.reason?.message || "运行状态读取失败";
+      setAsyncRegionState("#model-runtime", "error", message);
+      select("#runtime-status-badge").className = "runtime-badge is-error";
+      select("#runtime-status-badge").textContent = "读取失败";
+    }
+
+    if (modelsResult.status === "fulfilled") {
+      renderModelRegistry(modelsResult.value, state);
+    } else {
+      state.models = [];
+      state.candidates = [];
+      setAsyncRegionState("#model-list", "error", modelsResult.reason?.message || "模型版本读取失败");
+      const selector = select("#publish-model-version");
+      selector.replaceChildren(element("option", "", "候选版本读取失败"));
+    }
+
+    if (evaluationResult.status === "fulfilled") {
+      renderModelDecision(evaluationResult.value);
+    } else {
+      setAsyncRegionState(
+        "#model-decision-table",
+        "error",
+        evaluationResult.reason?.message || "评估证据读取失败",
+      );
+    }
+
+    if (requestsResult.status === "fulfilled") {
+      renderRequestTimeline(requestsResult.value, loadRequestTrace);
+    } else {
+      setAsyncRegionState("#request-timeline", "error", requestsResult.reason?.message || "请求时间线读取失败");
+    }
+
+    if (observabilityResult.status === "fulfilled") {
+      renderObservability(observabilityResult.value);
+    } else {
+      const message = observabilityResult.reason?.message || "在线可靠性指标读取失败";
+      setAsyncRegionState("#observability-health", "error", message);
+      setAsyncRegionState("#observability-by-feed", "error", message);
+      setAsyncRegionState("#observability-by-model", "error", message);
+    }
+    updateOperationControls();
+  }
+
+  async function publishSelectedModel() {
+    const selector = select("#publish-model-version");
+    const version = selector.value;
+    if (!version || !window.confirm(`确认发布模型 ${version}？`)) return;
+    setOperationStatus("publishing");
+    try {
+      await api(`/api/admin/models/${encodeURIComponent(version)}/publish`, { method: "POST" });
+      setOperationStatus("published", `目标版本：${version}`);
+      toast(`模型 ${version} 发布成功`);
+      await loadReliabilityDashboard();
+    } catch (error) {
+      setOperationStatus("publish_failed", error.message || "请检查 artifact 后重试。");
+      toast(error.message || "模型发布失败", "error");
+    }
+  }
+
+  async function rollbackModel() {
+    const previous = state.runtime?.previous?.model_version;
+    if (!previous || !window.confirm(`确认回滚到 ${previous}？`)) return;
+    setOperationStatus("rolling_back");
+    try {
+      await api(RELIABILITY_API.rollback, { method: "POST" });
+      setOperationStatus("rolled_back", `目标版本：${previous}`);
+      toast(`已回滚到 ${previous}`);
+      await loadReliabilityDashboard();
+    } catch (error) {
+      setOperationStatus("rollback_failed", error.message || "请检查上一版本后重试。");
+      toast(error.message || "模型回滚失败", "error");
     }
   }
 
@@ -619,6 +1132,7 @@ function setupDashboard() {
       selectAll("[data-window]").forEach((node) => node.setAttribute("aria-selected", "false"));
       button.setAttribute("aria-selected", "true");
       loadDashboard();
+      loadReliabilityDashboard();
     });
   });
   selectAll("[data-trend-metric]").forEach((button) => {
@@ -631,8 +1145,11 @@ function setupDashboard() {
   });
   select("#refresh-dashboard").addEventListener("click", () => {
     loadDashboard();
-    loadModels();
+    loadReliabilityDashboard();
   });
+  select("#publish-model-version").addEventListener("change", updateOperationControls);
+  select("#publish-model-button").addEventListener("click", publishSelectedModel);
+  select("#rollback-model-button").addEventListener("click", rollbackModel);
   let resizeTimer = null;
   window.addEventListener("resize", () => {
     window.clearTimeout(resizeTimer);
@@ -656,18 +1173,11 @@ function setupDashboard() {
   });
   select("#request-trace-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const target = select("#request-trace-result");
     const requestId = new FormData(event.currentTarget).get("request_id");
-    target.textContent = "正在查询…";
-    try {
-      const result = await api(`/api/admin/requests/${encodeURIComponent(requestId)}`);
-      renderRecord(target, result);
-    } catch (error) {
-      target.textContent = error.message || "请求链路读取失败";
-    }
+    await loadRequestTrace(requestId);
   });
   loadDashboard();
-  loadModels();
+  loadReliabilityDashboard();
 }
 
 function setupContents() {
