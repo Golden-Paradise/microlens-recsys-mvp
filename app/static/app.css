@@ -261,6 +261,12 @@ h2 { margin-bottom: 0; font-size: 17px; line-height: 1.35; }
 .detail-key { color: var(--text-soft); font-size: 12px; }
 .detail-value { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
 .data-region { min-height: 52px; overflow-x: auto; }
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
 
 .toolbar { display: flex; margin-bottom: 14px; }
 .inline-form { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
@@ -333,7 +339,7 @@ textarea { min-height: 84px; resize: vertical; }
   .feed-meta { gap: 8px 16px; }
   .feed-meta > div { width: 100%; }
   .feed-meta code { max-width: calc(100vw - 120px); }
-  .metric-grid, .detail-grid { grid-template-columns: 1fr; }
+  .metric-grid, .detail-grid, .diagnostic-grid { grid-template-columns: 1fr; }
   .metric-card { min-height: 82px; }
   .detail-row { grid-template-columns: minmax(95px, .65fr) 1fr; }
   .section-heading { align-items: start; flex-direction: column; gap: 3px; }

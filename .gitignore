@@ -19,6 +19,6 @@ logs/
 tmp/
 
 *.mp4
+*.webm
 *.zip
 *.db
-

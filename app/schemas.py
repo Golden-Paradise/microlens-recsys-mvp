@@ -72,4 +72,5 @@ class DashboardOverview(BaseModel):
     likes: int
     offline_items: int
     current_model_version: str
-
+    feed_shares: dict[str, float]
+    hot_items: list[dict[str, object]]

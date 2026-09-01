@@ -54,6 +54,13 @@ def test_leave_last_two_split_has_no_temporal_leakage(prepared) -> None:
     summary = json.loads((prepared.path / "summary.json").read_text(encoding="utf-8"))
     assert summary["absolute_timestamps_available"] is False
     assert (prepared.path / "train_matrix.npz").is_file()
+    histories = pd.read_csv(prepared.path / "user_histories.csv")
+    assert len(histories) == 4
+    assert json.loads(histories.loc[histories["user_id"].eq(1), "history_item_ids"].item()) == [
+        1,
+        2,
+        3,
+    ]
 
 
 def test_ranking_metrics_known_example() -> None:

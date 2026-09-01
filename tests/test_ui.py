@@ -66,7 +66,15 @@ def test_dashboard_and_operations_have_required_controls() -> None:
     contents = (TEMPLATE_DIR / "admin_contents.html").read_text(encoding="utf-8")
     assert all(
         marker in dashboard
-        for marker in ("业务概览", "信息流诊断", "用户调试", "模型运行", "request-trace-form")
+        for marker in (
+            "业务概览",
+            "信息流诊断",
+            "信息流占比",
+            "热门内容",
+            "用户调试",
+            "模型运行",
+            "request-trace-form",
+        )
     )
     assert all(
         marker in contents

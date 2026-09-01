@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 
@@ -103,6 +105,86 @@ def offline_smoke(
             indent=2,
         )
     )
+
+
+@app.command()
+def smoke() -> None:
+    """Run the synthetic offline pipeline and the complete online API loop."""
+    work_dir = Path(tempfile.mkdtemp(prefix="microlens-smoke-"))
+    offline_smoke(work_dir=work_dir / "offline")
+
+    os.environ["APP_DATABASE_URL"] = f"sqlite:///{(work_dir / 'app.db').as_posix()}"
+    os.environ["APP_SEED_OFFICIAL_CATALOG"] = "false"
+    os.environ["APP_ARTIFACT_DIR"] = str(work_dir / "missing-artifacts")
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from app.recommendation import DeterministicRecommendationEngine
+    from app.seed import DEMO_PASSWORD
+
+    application = create_app(
+        settings=Settings(),
+        recommendation_engine=DeterministicRecommendationEngine(),
+    )
+    with TestClient(application) as client:
+        assert client.get("/api/health").status_code == 200
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "alice", "password": DEMO_PASSWORD},
+        ).status_code == 200
+        feed = client.get("/api/feeds/personalized?page_size=4")
+        assert feed.status_code == 200 and len(feed.json()["items"]) == 4
+        first_item = feed.json()["items"][0]
+        behavior = client.post(
+            "/api/events",
+            json={
+                "event_id": str(uuid4()),
+                "request_id": feed.json()["request_id"],
+                "item_id": first_item["item_id"],
+                "event_type": "like",
+            },
+        )
+        assert behavior.status_code == 200
+        assert client.post("/api/auth/logout").status_code == 204
+
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": DEMO_PASSWORD},
+        ).status_code == 200
+        force = client.post(
+            "/api/admin/operations/force",
+            json={"item_id": 40, "reason": "smoke force", "scope": "all"},
+        )
+        assert force.status_code == 200
+        assert client.post("/api/auth/logout").status_code == 204
+
+        client.post(
+            "/api/auth/login",
+            json={"username": "bob", "password": DEMO_PASSWORD},
+        )
+        forced_feed = client.get("/api/feeds/explore?page_size=4").json()
+        assert forced_feed["items"][0]["item_id"] == 40
+        assert forced_feed["items"][0]["source"] == "forced"
+        client.post("/api/auth/logout")
+
+        client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": DEMO_PASSWORD},
+        )
+        offline = client.post(
+            "/api/admin/operations/offline",
+            json={"item_id": 40, "reason": "smoke offline"},
+        )
+        assert offline.status_code == 200
+        client.post("/api/auth/logout")
+        client.post(
+            "/api/auth/login",
+            json={"username": "carol", "password": DEMO_PASSWORD},
+        )
+        assert client.get("/api/items/40").status_code == 404
+
+    typer.echo(json.dumps({"status": "ok", "scope": "offline+online"}, indent=2))
 
 
 if __name__ == "__main__":

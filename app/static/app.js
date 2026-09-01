@@ -360,6 +360,8 @@ function setupDashboard() {
         ["当前模型", summary.current_model_version, true],
       ]);
       renderRecord(select("#feed-diagnostics"), diagnostics.items || diagnostics);
+      renderRecord(select("#feed-shares"), summary.feed_shares || {});
+      renderRecord(select("#hot-items"), summary.hot_items || []);
       renderRecord(select("#model-list"), models.items || models);
     } catch (error) {
       errorBox.textContent = error.message || "看板数据读取失败";

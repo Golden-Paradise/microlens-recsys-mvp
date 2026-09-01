@@ -24,6 +24,16 @@
     <span class="muted">流量占比、热门内容与回退情况</span>
   </div>
   <div id="feed-diagnostics" class="data-region"></div>
+  <div class="diagnostic-grid">
+    <div>
+      <h3>信息流占比</h3>
+      <div id="feed-shares" class="data-region"></div>
+    </div>
+    <div>
+      <h3>热门内容</h3>
+      <div id="hot-items" class="data-region"></div>
+    </div>
+  </div>
   <form id="request-trace-form" class="inline-form trace-form">
     <label for="trace-request-id">请求 ID</label>
     <input id="trace-request-id" name="request_id" required minlength="36" maxlength="36" placeholder="输入 Feed 顶部展示的 request_id">

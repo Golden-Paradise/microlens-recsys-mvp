@@ -437,6 +437,33 @@ class DashboardService:
         offline_items = session.exec(
             select(func.count(Item.id)).where(Item.status == ItemStatus.OFFLINE)
         ).one()
+        feed_rows = session.exec(
+            select(RecommendationRequest.feed_type, func.count(RecommendationRequest.id))
+            .group_by(RecommendationRequest.feed_type)
+        ).all()
+        feed_counts = {feed_type.value: count for feed_type, count in feed_rows}
+        feed_shares = {
+            feed_type.value: feed_counts.get(feed_type.value, 0) / requests if requests else 0.0
+            for feed_type in FeedType
+        }
+        hot_rows = session.exec(
+            select(Event.item_id, func.count(Event.id).label("behavior_count"))
+            .where(Event.event_type.in_([EventType.CLICK, EventType.LIKE]))
+            .group_by(Event.item_id)
+            .order_by(func.count(Event.id).desc(), Event.item_id)
+            .limit(10)
+        ).all()
+        hot_items = []
+        for item_id, behavior_count in hot_rows:
+            item = session.get(Item, item_id)
+            if item is not None:
+                hot_items.append(
+                    {
+                        "item_id": item.id,
+                        "title": item.title,
+                        "behavior_count": behavior_count,
+                    }
+                )
         return DashboardOverview(
             users=users,
             active_users=active_users,
@@ -447,6 +474,8 @@ class DashboardService:
             likes=likes,
             offline_items=offline_items,
             current_model_version=current_model_version,
+            feed_shares=feed_shares,
+            hot_items=hot_items,
         )
 
     @staticmethod
@@ -505,6 +534,15 @@ class DashboardService:
             ).all()
         )
         counts = Counter(event.event_type.value for event in events)
+        latest_exposures = []
+        if requests:
+            latest_exposures = list(
+                session.exec(
+                    select(Exposure)
+                    .where(Exposure.request_id == requests[0].id)
+                    .order_by(Exposure.position)
+                ).all()
+            )
         return {
             "user": {
                 "id": user.id,
@@ -514,6 +552,7 @@ class DashboardService:
             "event_counts": counts,
             "recent_requests": requests,
             "recent_events": events,
+            "latest_exposures": latest_exposures,
         }
 
     @staticmethod

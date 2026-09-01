@@ -167,6 +167,12 @@ def test_dashboard_diagnostics_and_request_trace_use_real_events() -> None:
         assert overview["clicks"] == 1
         assert overview["likes"] == 1
         assert overview["ctr"] == pytest.approx(0.25)
+        assert overview["feed_shares"] == {
+            "personalized": 0.0,
+            "popular": 0.0,
+            "explore": 1.0,
+        }
+        assert overview["hot_items"][0]["behavior_count"] == 1
 
         diagnostics = client.get("/api/admin/feeds/diagnostics").json()
         explore = next(row for row in diagnostics if row["feed_type"] == "explore")

@@ -214,6 +214,15 @@ def prepare_dataset(raw_dir: Path, processed_root: Path) -> PreparedDataset:
         interactions.loc[interactions["split"].eq(split), export_columns].to_csv(
             output / f"{split}.csv", index=False
         )
+    train_histories = (
+        interactions.loc[interactions["split"].eq("train")]
+        .sort_values(["user_id", "sequence_position"], kind="stable")
+        .groupby("user_id", sort=False)["item_id"]
+        .apply(lambda values: json.dumps([int(value) for value in values]))
+        .rename("history_item_ids")
+        .reset_index()
+    )
+    train_histories.to_csv(output / "user_histories.csv", index=False)
     items.to_csv(output / "items.csv", index=False)
 
     matrices = {}
