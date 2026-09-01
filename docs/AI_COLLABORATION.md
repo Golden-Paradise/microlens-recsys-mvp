@@ -49,7 +49,7 @@ AI 生成了大部分实现首稿、测试和文档草稿，约占代码编写�
 - 每个 Gate 独立 commit/push；`pytest`、Ruff、synthetic smoke、官方全量训练/回载、模型 checksum。
 - FastAPI TestClient 覆盖认证、权限、事件幂等、运营冲突和 fallback；真实浏览器覆盖主要旅程与响应式布局。
 - v0.1 私有 Release 同时提供 ALS bundle 与 04:08 视频，分别记录 SHA256；原数据、PDF、
-  数据库和密钥不上传。v0.2 在发布前只称为本地 Release candidate bundle。
+  数据库和密钥不上传。v0.2 Release 只提供模型 bundle 与独立 SHA256 文件，不上传新视频。
 
 ## v0.2 并行迭代记录
 
@@ -83,7 +83,7 @@ v0.2 人工/主 Agent 修复：
 7. 正式训练没有记录完整开始时间。文档只写可证实的 artifact 发布时间，并将时间戳 wrapper
    固定为后续实验门禁，没有反推或伪造 wall-clock。
 
-v0.2 代码首稿仍主要由 AI/subagent 生成；指标口径、选型、修复、浏览器、远端 CI、本地
-Release candidate 和对外结论由主 Agent 基于真实命令与产物复核。RRF 的 Recall 更高但
+v0.2 代码首稿仍主要由 AI/subagent 生成；指标口径、选型、修复、浏览器、远端 CI、Release
+和对外结论由主 Agent 基于真实命令与产物复核。RRF 的 Recall 更高但
 NDCG 更低，因此没有为了
 展示复杂架构而冒充线上最优方案。

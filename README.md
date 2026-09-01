@@ -4,7 +4,7 @@
 验证集选型 -> 多用户信息流 -> 行为回传 -> 时间趋势 Dashboard -> 运营控制。
 
 - 私有仓库：<https://github.com/Golden-Paradise/microlens-recsys-mvp>
-- v0.2 模型 Release（发布完成后）：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>
+- v0.2 模型 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>
 - v0.1 ALS/视频 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.1.0-als>
 - 4:08 演示视频：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.1.0-als/microlens-recsys-mvp-demo.webm>
 - 本地 Demo：<http://127.0.0.1:8000/login>
@@ -27,7 +27,7 @@ validation 选型，然后验证登录、个性化 Feed、曝光、点赞、画�
 
 ## 2. 直接运行已训练 v0.2 模型
 
-v0.2.0 Release 发布后，私有仓库协作者可用 GitHub CLI 下载约 35.2 MiB 的模型 bundle：
+私有仓库协作者可用 GitHub CLI 下载约 35.2 MiB 的模型 bundle：
 
 ```powershell
 gh release download v0.2.0 --pattern "microlens-recsys-bundle-v0.2.0-bm25.zip" --dir tmp/release

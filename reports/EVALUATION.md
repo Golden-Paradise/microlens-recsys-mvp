@@ -69,8 +69,8 @@ uv run microlens train
 v0.2 artifact 包含 `als_model.npz`、`cosine_model.npz`、`bm25_model.npz`、
 `serving_user_items.npz`、mappings、Popularity、`metrics.json`、`badcases.csv`、
 `checksums.json` 和 `manifest.json`。正式模型版本为
-`hybrid-bm25-f64-764b7d14ce34-20260901T134041223913Z`。本地待发布 ZIP 为
-`tmp/microlens-recsys-bundle-v0.2.0-bm25.zip`，36,866,255 bytes，SHA256：
+`hybrid-bm25-f64-764b7d14ce34-20260901T134041223913Z`。Release asset 为
+`microlens-recsys-bundle-v0.2.0-bm25.zip`，36,866,255 bytes，SHA256：
 `69479A2F04E90D133E9CE13579792C7781A909F5266E0447927FC331A8E9F7B6`。
 
 正式 `uv run microlens train` 没有记录完整命令开始时间，因此不提供估算耗时；可证实的

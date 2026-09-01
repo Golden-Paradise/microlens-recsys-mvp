@@ -12,7 +12,7 @@
   流占比、用户调试、单请求链路和模型运行状态。
 - 内容搜索、按用户/Feed/全体强推、时窗、下线、恢复、最终权威过滤和操作审计。
 - 本地页面、只读 SQLAdmin、30 项测试、Ubuntu/Python 3.11 CI、smoke、响应式浏览器证据、
-  过程日志、私有 GitHub 分 Gate 提交和已校验的 v0.2 Release bundle。
+  过程日志、私有 GitHub 分 Gate 提交和已发布的 v0.2 模型 Release。
 
 ## Mock 与未完成
 

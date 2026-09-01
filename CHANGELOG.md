@@ -2,7 +2,7 @@
 
 All notable changes, compatibility notes, and verification evidence are recorded here.
 
-## [Unreleased]
+## [0.2.0] - 2026-09-01
 
 ### Added
 
@@ -30,11 +30,13 @@ All notable changes, compatibility notes, and verification evidence are recorded
 - G3 local: the CI contract runs on Ubuntu/Python 3.11 without official data, model
   downloads, database state, or secrets.
 - G3 remote: GitHub Actions run `33517793682` passed its 29-test suite and every other step
-  in 33 seconds with no
-  annotations after upgrading to maintained Node 24 action releases.
+  in 33 seconds with no annotations after upgrading to maintained Node 24 action releases.
 - Pre-release review added an explicit UTC-offset API contract test; the local suite is now
-  30 tests and will be rerun by CI after this change is pushed.
-- Release-candidate bundle prepared locally: 36,866,255 bytes; SHA256
+  30 tests. Feature run `33521269946` and main run `33521419830` both passed the updated
+  suite, Ruff and smoke with no annotations.
+- G4 fresh clone at commit `714216e` completed frozen sync and offline+online smoke with a
+  clean worktree.
+- Published Release bundle: 36,866,255 bytes; SHA256
   `69479A2F04E90D133E9CE13579792C7781A909F5266E0447927FC331A8E9F7B6`.
 
 ## [0.1.0] - 2026-09-01

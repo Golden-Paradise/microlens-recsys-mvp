@@ -46,15 +46,17 @@ active_users 的口径问题。
 - `reports/screenshots/v0.2/admin-dashboard-chart-6h-1280x720.png`
 - `reports/screenshots/v0.2/admin-dashboard-chart-6h-390x844.png`
 
-GitHub Actions：最终 run
-<https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33517793682> 在 Ubuntu
-24.04/Python 3.11 上执行 frozen sync、Ruff、29 tests、smoke，33 秒成功且 annotations 为空。
-发布前 UTC 契约测试把本地 suite 增至 30；对应远端 run 在 feature commit 推送后补记。
+GitHub Actions：feature run
+<https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33521269946> 与 main run
+<https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33521419830> 均在 Ubuntu
+24.04/Python 3.11 上执行 frozen sync、Ruff、30 tests 和 smoke；原始日志确认分别约 38/39 秒
+成功且 annotations 为空。
 
 v0.1 必选项视频：04:08、1280x720，抽查 10 个时间点，SHA256 为
 `254E4EAFE0BAA2F464D20BAAB0E5926C3642006E09785C87538D495452B28CA4`。它只证明 PDF
 必选旅程；v0.2 加分能力由正式指标、30 项本地测试、远端 CI 与四张响应式截图证明，本轮不重录。
 
-v0.1 基线曾从私有 GitHub 的 `4d070a6` 完成全新 clone smoke。v0.2 将在 feature
-分支合入 `main` 后另建临时目录重跑；在该命令实际完成前，不沿用 v0.1 结果冒充 v0.2
-干净环境证据。
+v0.2 全新 clone：从私有 GitHub 的 `main` 克隆 `714216e` 到新的 `%TEMP%` 目录，未复制当前
+工作目录的 `.venv`、数据、artifact 或 SQLite。`uv sync --frozen` 新建环境并安装 61 个锁定
+包；`uv run microlens smoke` 返回离线 `status=ok` 和在线 `scope=offline+online`。结束时
+`git status` 只有 `main...origin/main`，无未提交文件；`data/raw` 只有版本化 `.gitkeep`。

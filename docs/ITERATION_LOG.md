@@ -197,3 +197,34 @@ Each subsequent entry must include:
   are now 10 passed and the full local suite is 30 passed. Ruff passed after line-length review.
 - This contract fix and documentation audit are included in the next feature-branch commit;
   its remote CI run is recorded only after push.
+
+## 2026-09-01 23:04 +08:00 - G4 publish and fresh-clone acceptance
+
+- Pre-release commit: `714216e`. Feature run
+  `https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33521269946`
+  passed frozen sync, Ruff, 30 tests and offline+online smoke in about 38 seconds with no
+  annotations.
+- `main` was fast-forwarded from `1b0d21b` to `714216e`; no merge commit or history rewrite
+  was used. Main run
+  `https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33521419830`
+  passed the same checks in about 39 seconds with no annotations.
+- Release URL: `https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0`;
+  published at 2026-09-01T15:00:58Z. Tag `v0.2.0` resolves to `714216e`.
+- Assets: 36,866,255-byte bundle plus a 106-byte `.sha256` file. GitHub reports the bundle
+  state as `uploaded` and digest as
+  `sha256:69479a2f04e90d133e9ce13579792c7781a909f5266e0447927fc331a8e9f7b6`,
+  exactly matching the local hash. The `.sha256` asset was downloaded into a separate temp
+  directory and its content matched the same value. No v0.2 video was uploaded.
+- Release failure and fix: the first create request ended with an API `EOF`. Its retry
+  created a draft, but proxy-routed asset uploads had zero I/O and the direct debug request
+  confirmed another `EOF` from `api.uploads.github.com`. After confirming the draft had no
+  partial bundle, upload traffic for that asset host bypassed the local proxy; both assets
+  uploaded successfully, were checksum-verified, and only then was the draft published.
+- Fresh-clone commands in a new OS temp directory: `git clone`, `uv sync --frozen`, and
+  `uv run microlens smoke`. The clone resolved to `714216e`, installed 61 locked packages,
+  returned offline `status=ok` plus online `scope=offline+online`, and ended with a clean
+  `main...origin/main` worktree. No existing database, model artifact or official data was
+  copied; `data/raw` contained only `.gitkeep`.
+- G4 evidence is complete. This log, Changelog, acceptance matrix and completion report are
+  frozen in the final documentation commit; the commit is pushed only after local diff,
+  test, lint and smoke revalidation.
