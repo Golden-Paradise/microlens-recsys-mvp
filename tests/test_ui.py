@@ -74,12 +74,42 @@ def test_dashboard_and_operations_have_required_controls() -> None:
             "用户调试",
             "模型运行",
             "request-trace-form",
+            "dashboard-window-control",
+            "trend-metric-control",
+            "dashboard-trend-svg",
+            "trend-tooltip",
+            "trend-empty",
+            "trend-error",
         )
     )
     assert all(
         marker in contents
         for marker in ("强推范围", "操作原因", "生效时间", "失效时间", "数据审计")
     )
+
+
+def test_dashboard_window_and_trend_contract_is_wired_to_api() -> None:
+    dashboard = (TEMPLATE_DIR / "admin_dashboard.html").read_text(encoding="utf-8")
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    styles = (STATIC_DIR / "app.css").read_text(encoding="utf-8")
+
+    assert {"1h", "6h", "24h", "all"} <= {
+        value.split('"', 1)[0] for value in dashboard.split('data-window="')[1:]
+    }
+    assert {"requests", "exposures", "clicks", "likes", "ctr"} <= {
+        value.split('"', 1)[0] for value in dashboard.split('data-trend-metric="')[1:]
+    }
+    assert 'data-window="24h"' in dashboard
+    assert 'data-window="24h">24小时' in dashboard
+    assert '/api/admin/dashboard?${query}' in script
+    assert '/api/admin/feeds/diagnostics?${query}' in script
+    assert '/api/admin/dashboard/trends?${query}' in script
+    assert "document.createElementNS" in script
+    assert "renderTrendChart" in script
+    assert "Promise.allSettled" in script
+    assert ".trend-stage" in styles
+    assert "height: 320px" in styles
+    assert "height: 260px" in styles
 
 
 def test_sqladmin_views_are_read_only_and_authenticated() -> None:

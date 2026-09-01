@@ -17,6 +17,15 @@ function element(tag, className = "", text = "") {
   return node;
 }
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+function svgElement(tag, attributes = {}, text = "") {
+  const node = document.createElementNS(SVG_NAMESPACE, tag);
+  Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, String(value)));
+  if (text !== "") node.textContent = String(text);
+  return node;
+}
+
 function displayValue(value) {
   if (value === null || value === undefined || value === "") return "--";
   if (typeof value === "boolean") return value ? "是" : "否";
@@ -302,6 +311,153 @@ function renderRecord(container, payload) {
   }
 }
 
+const TREND_METRICS = {
+  requests: "请求",
+  exposures: "曝光",
+  clicks: "点击",
+  likes: "点赞",
+  ctr: "CTR",
+};
+
+function parseUtcTimestamp(value) {
+  if (!value) return null;
+  const timestamp = String(value);
+  const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(timestamp) ? timestamp : `${timestamp}Z`;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatTrendTime(value, includeDate = true) {
+  const parsed = parseUtcTimestamp(value);
+  if (!parsed) return "--";
+  return new Intl.DateTimeFormat("zh-CN", {
+    ...(includeDate ? { month: "2-digit", day: "2-digit" } : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+}
+
+function formatTrendValue(metric, value) {
+  const numeric = Number(value || 0);
+  if (metric === "ctr") return `${(numeric * 100).toFixed(2)}%`;
+  return Math.round(numeric).toLocaleString();
+}
+
+function renderTrendChart(payload, metric) {
+  const points = Array.isArray(payload?.points) ? payload.points : [];
+  const plot = select("#dashboard-trend-plot");
+  const chart = select("#trend-chart");
+  const tooltip = select("#trend-tooltip");
+  if (!plot || !chart || !tooltip || !points.length) return;
+
+  const svg = select("#dashboard-trend-svg");
+  const width = Math.max(chart.clientWidth, 320);
+  const height = Math.max(chart.clientHeight, 240);
+  const bounds = {
+    left: width < 600 ? 52 : 66,
+    right: width < 600 ? 14 : 24,
+    top: 22,
+    bottom: 46,
+  };
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const plotWidth = width - bounds.left - bounds.right;
+  const plotHeight = height - bounds.top - bounds.bottom;
+  const values = points.map((point) => Number(point[metric] || 0));
+  const observedMax = Math.max(...values, 0);
+  const upperBound = observedMax > 0 ? observedMax * 1.12 : 1;
+  const xFor = (index) => (
+    points.length === 1
+      ? bounds.left + plotWidth / 2
+      : bounds.left + (index / (points.length - 1)) * plotWidth
+  );
+  const yFor = (value) => bounds.top + plotHeight - (value / upperBound) * plotHeight;
+
+  plot.replaceChildren();
+  tooltip.hidden = true;
+  select("#dashboard-trend-title").textContent = `${TREND_METRICS[metric]}趋势`;
+  select("#dashboard-trend-desc").textContent = (
+    `共 ${points.length} 个时间桶，当前最高值 ${formatTrendValue(metric, observedMax)}`
+  );
+
+  for (let step = 0; step <= 4; step += 1) {
+    const ratio = step / 4;
+    const y = bounds.top + plotHeight - ratio * plotHeight;
+    plot.append(svgElement("line", {
+      x1: bounds.left,
+      y1: y,
+      x2: width - bounds.right,
+      y2: y,
+      class: "trend-grid-line",
+    }));
+    plot.append(svgElement("text", {
+      x: bounds.left - 12,
+      y: y + 4,
+      class: "trend-axis-label trend-axis-label-y",
+      "text-anchor": "end",
+    }, formatTrendValue(metric, upperBound * ratio)));
+  }
+
+  const labelDivisions = width < 600 ? 2 : 4;
+  const labelIndexes = new Set([0, points.length - 1]);
+  for (let step = 1; step < labelDivisions; step += 1) {
+    labelIndexes.add(Math.round(((points.length - 1) * step) / labelDivisions));
+  }
+  [...labelIndexes].sort((left, right) => left - right).forEach((index) => {
+    plot.append(svgElement("text", {
+      x: xFor(index),
+      y: height - 15,
+      class: "trend-axis-label",
+      "text-anchor": index === 0 ? "start" : (index === points.length - 1 ? "end" : "middle"),
+    }, formatTrendTime(points[index].bucket_start, points.length > 12)));
+  });
+
+  const coordinates = points.map((point, index) => [xFor(index), yFor(values[index]), point]);
+  const lineDefinition = coordinates
+    .map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`)
+    .join(" ");
+  if (coordinates.length > 1) {
+    const areaDefinition = (
+      `${lineDefinition} L ${coordinates.at(-1)[0].toFixed(2)} ${(bounds.top + plotHeight).toFixed(2)}`
+      + ` L ${coordinates[0][0].toFixed(2)} ${(bounds.top + plotHeight).toFixed(2)} Z`
+    );
+    plot.append(svgElement("path", { d: areaDefinition, class: "trend-area" }));
+  }
+  plot.append(svgElement("path", { d: lineDefinition, class: "trend-line" }));
+
+  const showTooltip = (point, x, y) => {
+    tooltip.textContent = (
+      `${formatTrendTime(point.bucket_start)} · ${TREND_METRICS[metric]} `
+      + formatTrendValue(metric, point[metric])
+    );
+    tooltip.hidden = false;
+    const chartWidth = chart.getBoundingClientRect().width;
+    const left = Math.min(Math.max(x, 86), chartWidth - 86);
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${Math.max(y - 42, 8)}px`;
+  };
+  const hideTooltip = () => { tooltip.hidden = true; };
+
+  coordinates.forEach(([x, y, point]) => {
+    const marker = svgElement("circle", {
+      cx: x,
+      cy: y,
+      r: points.length > 80 ? 2.8 : 4,
+      class: "trend-point",
+      tabindex: "0",
+      "aria-label": (
+        `${formatTrendTime(point.bucket_start)}，${TREND_METRICS[metric]}，`
+        + `${formatTrendValue(metric, point[metric])}`
+      ),
+    });
+    marker.addEventListener("pointerenter", () => showTooltip(point, x, y));
+    marker.addEventListener("focus", () => showTooltip(point, x, y));
+    marker.addEventListener("pointerleave", hideTooltip);
+    marker.addEventListener("blur", hideTooltip);
+    plot.append(marker);
+  });
+}
+
 function setupProfile() {
   const summary = select("#profile-summary");
   if (!summary) return;
@@ -343,15 +499,73 @@ function setupProfile() {
 function setupDashboard() {
   const overview = select("#overview-metrics");
   if (!overview) return;
+  const state = {
+    window: "24h",
+    metric: "requests",
+    trends: null,
+    requestVersion: 0,
+  };
+
+  function showTrendState(mode, message = "") {
+    const loading = select("#trend-loading");
+    const error = select("#trend-error");
+    const empty = select("#trend-empty");
+    const chart = select("#trend-chart");
+    loading.hidden = mode !== "loading";
+    error.hidden = mode !== "error";
+    empty.hidden = mode !== "empty";
+    chart.hidden = mode !== "chart";
+    if (mode === "error") error.textContent = message || "趋势数据读取失败";
+  }
+
+  function updateTrendMeta(payload) {
+    const labels = { "1h": "近1小时", "6h": "近6小时", "24h": "近24小时", all: "全部历史" };
+    const start = payload.window_start ? formatTrendTime(payload.window_start) : null;
+    const end = formatTrendTime(payload.window_end);
+    const range = start ? `${start} - ${end}` : labels[payload.window] || labels[state.window];
+    select("#trend-window-meta").textContent = (
+      `${range} · ${Number(payload.bucket_minutes || 0).toLocaleString()} 分钟/点`
+    );
+  }
+
+  function displayTrends(payload) {
+    state.trends = payload;
+    updateTrendMeta(payload);
+    if (!Array.isArray(payload.points) || !payload.points.length) {
+      showTrendState("empty");
+      return;
+    }
+    showTrendState("chart");
+    renderTrendChart(payload, state.metric);
+  }
+
+  function setAggregateControlsDisabled(disabled) {
+    selectAll("[data-window]").forEach((button) => { button.disabled = disabled; });
+    select("#refresh-dashboard").disabled = disabled;
+  }
+
+  function showRegionError(container, message) {
+    const gridClass = container === overview ? " dashboard-grid-state" : "";
+    container.replaceChildren(element("div", `state-panel state-error${gridClass}`, message));
+  }
+
   async function loadDashboard() {
     const errorBox = select("#dashboard-error");
+    const requestVersion = state.requestVersion + 1;
+    state.requestVersion = requestVersion;
     errorBox.hidden = true;
-    try {
-      const [summary, diagnostics, models] = await Promise.all([
-        api("/api/admin/dashboard"),
-        api("/api/admin/feeds/diagnostics"),
-        api("/api/admin/models"),
-      ]);
+    setAggregateControlsDisabled(true);
+    showTrendState("loading");
+    const query = `window=${encodeURIComponent(state.window)}`;
+    const [summaryResult, diagnosticsResult, trendsResult] = await Promise.allSettled([
+      api(`/api/admin/dashboard?${query}`),
+      api(`/api/admin/feeds/diagnostics?${query}`),
+      api(`/api/admin/dashboard/trends?${query}`),
+    ]);
+    if (requestVersion !== state.requestVersion) return;
+
+    if (summaryResult.status === "fulfilled") {
+      const summary = summaryResult.value;
       appendMetrics(overview, [
         ["用户数", summary.users], ["活跃用户", summary.active_users],
         ["推荐请求", summary.requests], ["曝光数", summary.exposures],
@@ -359,16 +573,75 @@ function setupDashboard() {
         ["点赞数", summary.likes], ["下线内容", summary.offline_items],
         ["当前模型", summary.current_model_version, true],
       ]);
-      renderRecord(select("#feed-diagnostics"), diagnostics.items || diagnostics);
       renderRecord(select("#feed-shares"), summary.feed_shares || {});
       renderRecord(select("#hot-items"), summary.hot_items || []);
-      renderRecord(select("#model-list"), models.items || models);
-    } catch (error) {
-      errorBox.textContent = error.message || "看板数据读取失败";
+    } else {
+      const message = summaryResult.reason?.message || "概览指标读取失败";
+      errorBox.textContent = message;
       errorBox.hidden = false;
+      showRegionError(overview, message);
+      showRegionError(select("#feed-shares"), message);
+      showRegionError(select("#hot-items"), message);
+    }
+
+    if (diagnosticsResult.status === "fulfilled") {
+      const diagnostics = diagnosticsResult.value;
+      renderRecord(select("#feed-diagnostics"), diagnostics.items || diagnostics);
+    } else {
+      showRegionError(
+        select("#feed-diagnostics"),
+        diagnosticsResult.reason?.message || "信息流诊断读取失败",
+      );
+    }
+
+    if (trendsResult.status === "fulfilled") {
+      displayTrends(trendsResult.value);
+    } else {
+      state.trends = null;
+      showTrendState("error", trendsResult.reason?.message || "趋势数据读取失败");
+    }
+    setAggregateControlsDisabled(false);
+  }
+
+  async function loadModels() {
+    const target = select("#model-list");
+    try {
+      const models = await api("/api/admin/models");
+      renderRecord(target, models.items || models);
+    } catch (error) {
+      showRegionError(target, error.message || "模型列表读取失败");
     }
   }
-  select("#refresh-dashboard").addEventListener("click", loadDashboard);
+
+  selectAll("[data-window]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.window = button.dataset.window;
+      selectAll("[data-window]").forEach((node) => node.setAttribute("aria-selected", "false"));
+      button.setAttribute("aria-selected", "true");
+      loadDashboard();
+    });
+  });
+  selectAll("[data-trend-metric]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.metric = button.dataset.trendMetric;
+      selectAll("[data-trend-metric]").forEach((node) => node.setAttribute("aria-selected", "false"));
+      button.setAttribute("aria-selected", "true");
+      if (state.trends?.points?.length) renderTrendChart(state.trends, state.metric);
+    });
+  });
+  select("#refresh-dashboard").addEventListener("click", () => {
+    loadDashboard();
+    loadModels();
+  });
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      if (state.trends?.points?.length && !select("#trend-chart").hidden) {
+        renderTrendChart(state.trends, state.metric);
+      }
+    }, 120);
+  });
   select("#user-debug-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const target = select("#user-debug-result");
@@ -394,6 +667,7 @@ function setupDashboard() {
     }
   });
   loadDashboard();
+  loadModels();
 }
 
 function setupContents() {

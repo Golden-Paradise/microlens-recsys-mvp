@@ -6,7 +6,18 @@
     <h1>运营看板</h1>
     <p class="muted">指标来自当前 SQLite 事件、曝光与推荐请求。</p>
   </div>
-  <button id="refresh-dashboard" class="button button-secondary" type="button">刷新数据</button>
+  <div class="dashboard-actions">
+    <div>
+      <span class="control-label">统计范围</span>
+      <div id="dashboard-window-control" class="segmented-control window-control" role="tablist" aria-label="Dashboard 统计范围">
+        <button type="button" role="tab" aria-selected="false" data-window="1h">1小时</button>
+        <button type="button" role="tab" aria-selected="false" data-window="6h">6小时</button>
+        <button type="button" role="tab" aria-selected="true" data-window="24h">24小时</button>
+        <button type="button" role="tab" aria-selected="false" data-window="all">全部</button>
+      </div>
+    </div>
+    <button id="refresh-dashboard" class="button button-secondary" type="button">刷新数据</button>
+  </div>
 </header>
 
 <div id="dashboard-error" class="state-panel state-error" hidden></div>
@@ -15,6 +26,38 @@
   <div id="overview-metrics" class="metric-grid">
     <div class="metric-card skeleton"></div><div class="metric-card skeleton"></div>
     <div class="metric-card skeleton"></div><div class="metric-card skeleton"></div>
+  </div>
+</section>
+
+<section class="section-band" aria-labelledby="trend-title">
+  <div class="trend-heading">
+    <div>
+      <h2 id="trend-title">指标趋势</h2>
+      <span id="trend-window-meta" class="muted">近24小时</span>
+    </div>
+    <div id="trend-metric-control" class="segmented-control metric-control" role="tablist" aria-label="趋势指标">
+      <button type="button" role="tab" aria-selected="true" data-trend-metric="requests">请求</button>
+      <button type="button" role="tab" aria-selected="false" data-trend-metric="exposures">曝光</button>
+      <button type="button" role="tab" aria-selected="false" data-trend-metric="clicks">点击</button>
+      <button type="button" role="tab" aria-selected="false" data-trend-metric="likes">点赞</button>
+      <button type="button" role="tab" aria-selected="false" data-trend-metric="ctr">CTR</button>
+    </div>
+  </div>
+  <div id="trend-stage" class="trend-stage">
+    <div id="trend-loading" class="trend-state" role="status">正在加载趋势…</div>
+    <div id="trend-error" class="trend-state trend-state-error" role="alert" hidden></div>
+    <div id="trend-empty" class="trend-state" hidden>
+      <strong>当前范围暂无数据</strong>
+      <span>产生推荐请求和行为后，这里会展示真实趋势。</span>
+    </div>
+    <div id="trend-chart" class="trend-chart" hidden>
+      <svg id="dashboard-trend-svg" viewBox="0 0 960 320" role="img" aria-labelledby="dashboard-trend-title dashboard-trend-desc">
+        <title id="dashboard-trend-title">请求趋势</title>
+        <desc id="dashboard-trend-desc">按时间桶展示 Dashboard 指标变化</desc>
+        <g id="dashboard-trend-plot"></g>
+      </svg>
+      <div id="trend-tooltip" class="trend-tooltip" role="tooltip" hidden></div>
+    </div>
   </div>
 </section>
 

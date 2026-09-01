@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.constants import EventType, FeedType, OperationScope
+from app.constants import DashboardWindow, EventType, FeedType, OperationScope
 
 
 class LoginRequest(BaseModel):
@@ -63,6 +63,9 @@ class OperationCreate(BaseModel):
 
 
 class DashboardOverview(BaseModel):
+    window: DashboardWindow
+    window_start: datetime | None
+    window_end: datetime
     users: int
     active_users: int
     requests: int
@@ -74,3 +77,20 @@ class DashboardOverview(BaseModel):
     current_model_version: str
     feed_shares: dict[str, float]
     hot_items: list[dict[str, object]]
+
+
+class DashboardTrendPoint(BaseModel):
+    bucket_start: datetime
+    requests: int
+    exposures: int
+    clicks: int
+    likes: int
+    ctr: float
+
+
+class DashboardTrends(BaseModel):
+    window: DashboardWindow
+    window_start: datetime | None
+    window_end: datetime
+    bucket_minutes: int
+    points: list[DashboardTrendPoint]

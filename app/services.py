@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.constants import (
+    DashboardWindow,
     EventType,
     FeedType,
     ItemStatus,
@@ -34,6 +35,8 @@ from app.recommendation import (
 )
 from app.schemas import (
     DashboardOverview,
+    DashboardTrendPoint,
+    DashboardTrends,
     EventCreate,
     EventResponse,
     FeedItemResponse,
@@ -417,28 +420,84 @@ class OperationService:
 
 
 class DashboardService:
+    _WINDOW_DURATION = {
+        DashboardWindow.HOUR_1: timedelta(hours=1),
+        DashboardWindow.HOUR_6: timedelta(hours=6),
+        DashboardWindow.HOUR_24: timedelta(hours=24),
+        DashboardWindow.ALL: None,
+    }
+    _BUCKET_MINUTES = {
+        DashboardWindow.HOUR_1: 5,
+        DashboardWindow.HOUR_6: 30,
+        DashboardWindow.HOUR_24: 60,
+        DashboardWindow.ALL: 1_440,
+    }
+
     @staticmethod
-    def overview(session: Session, current_model_version: str) -> DashboardOverview:
-        since = utc_now() - timedelta(hours=24)
+    def _window_bounds(
+        window: DashboardWindow, *, window_end: datetime | None = None
+    ) -> tuple[datetime | None, datetime]:
+        end = window_end or utc_now()
+        duration = DashboardService._WINDOW_DURATION[window]
+        return (end - duration if duration is not None else None), end
+
+    @staticmethod
+    def _time_conditions(
+        column: object, window_start: datetime | None, window_end: datetime
+    ) -> list[object]:
+        conditions = [column < window_end]
+        if window_start is not None:
+            conditions.append(column >= window_start)
+        return conditions
+
+    @staticmethod
+    def overview(
+        session: Session,
+        current_model_version: str,
+        window: DashboardWindow = DashboardWindow.HOUR_24,
+    ) -> DashboardOverview:
+        window_start, window_end = DashboardService._window_bounds(window)
+        request_conditions = DashboardService._time_conditions(
+            RecommendationRequest.created_at, window_start, window_end
+        )
+        exposure_conditions = DashboardService._time_conditions(
+            Exposure.created_at, window_start, window_end
+        )
+        event_conditions = DashboardService._time_conditions(
+            Event.created_at, window_start, window_end
+        )
+
         users = session.exec(select(func.count(User.id)).where(User.role == "user")).one()
         active_users = session.exec(
-            select(func.count(func.distinct(RecommendationRequest.user_id))).where(
-                RecommendationRequest.created_at >= since
+            select(func.count(func.distinct(RecommendationRequest.user_id)))
+            .join(User, User.id == RecommendationRequest.user_id)
+            .where(
+                User.role == "user",
+                *request_conditions
             )
         ).one()
-        requests = session.exec(select(func.count(RecommendationRequest.id))).one()
-        exposures = session.exec(select(func.count(Exposure.id))).one()
+        requests = session.exec(
+            select(func.count(RecommendationRequest.id)).where(*request_conditions)
+        ).one()
+        exposures = session.exec(
+            select(func.count(Exposure.id)).where(*exposure_conditions)
+        ).one()
         clicks = session.exec(
-            select(func.count(Event.id)).where(Event.event_type == EventType.CLICK)
+            select(func.count(Event.id)).where(
+                Event.event_type == EventType.CLICK, *event_conditions
+            )
         ).one()
         likes = session.exec(
-            select(func.count(Event.id)).where(Event.event_type == EventType.LIKE)
+            select(func.count(Event.id)).where(
+                Event.event_type == EventType.LIKE, *event_conditions
+            )
         ).one()
         offline_items = session.exec(
             select(func.count(Item.id)).where(Item.status == ItemStatus.OFFLINE)
         ).one()
         feed_rows = session.exec(
             select(RecommendationRequest.feed_type, func.count(RecommendationRequest.id))
+            .where(*request_conditions)
             .group_by(RecommendationRequest.feed_type)
         ).all()
         feed_counts = {feed_type.value: count for feed_type, count in feed_rows}
@@ -448,7 +507,10 @@ class DashboardService:
         }
         hot_rows = session.exec(
             select(Event.item_id, func.count(Event.id).label("behavior_count"))
-            .where(Event.event_type.in_([EventType.CLICK, EventType.LIKE]))
+            .where(
+                Event.event_type.in_([EventType.CLICK, EventType.LIKE]),
+                *event_conditions,
+            )
             .group_by(Event.item_id)
             .order_by(func.count(Event.id).desc(), Event.item_id)
             .limit(10)
@@ -465,6 +527,9 @@ class DashboardService:
                     }
                 )
         return DashboardOverview(
+            window=window,
+            window_start=window_start,
+            window_end=window_end,
             users=users,
             active_users=active_users,
             requests=requests,
@@ -479,24 +544,42 @@ class DashboardService:
         )
 
     @staticmethod
-    def feed_diagnostics(session: Session) -> list[dict[str, object]]:
+    def feed_diagnostics(
+        session: Session,
+        window: DashboardWindow = DashboardWindow.HOUR_24,
+    ) -> list[dict[str, object]]:
+        window_start, window_end = DashboardService._window_bounds(window)
+        request_conditions = DashboardService._time_conditions(
+            RecommendationRequest.created_at, window_start, window_end
+        )
+        exposure_conditions = DashboardService._time_conditions(
+            Exposure.created_at, window_start, window_end
+        )
+        event_conditions = DashboardService._time_conditions(
+            Event.created_at, window_start, window_end
+        )
         result = []
         for feed_type in FeedType:
             request_ids = list(
                 session.exec(
                     select(RecommendationRequest.id).where(
-                        RecommendationRequest.feed_type == feed_type
+                        RecommendationRequest.feed_type == feed_type,
+                        *request_conditions,
                     )
                 ).all()
             )
             requests = len(request_ids)
             if request_ids:
                 exposures = session.exec(
-                    select(func.count(Exposure.id)).where(Exposure.request_id.in_(request_ids))
+                    select(func.count(Exposure.id)).where(
+                        Exposure.request_id.in_(request_ids), *exposure_conditions
+                    )
                 ).one()
                 clicks = session.exec(
                     select(func.count(Event.id)).where(
-                        Event.request_id.in_(request_ids), Event.event_type == EventType.CLICK
+                        Event.request_id.in_(request_ids),
+                        Event.event_type == EventType.CLICK,
+                        *event_conditions,
                     )
                 ).one()
             else:
@@ -511,6 +594,102 @@ class DashboardService:
                 }
             )
         return result
+
+    @staticmethod
+    def trends(
+        session: Session,
+        window: DashboardWindow = DashboardWindow.HOUR_24,
+    ) -> DashboardTrends:
+        window_start, window_end = DashboardService._window_bounds(window)
+        request_times = list(
+            session.exec(
+                select(RecommendationRequest.created_at).where(
+                    *DashboardService._time_conditions(
+                        RecommendationRequest.created_at, window_start, window_end
+                    )
+                )
+            ).all()
+        )
+        exposure_times = list(
+            session.exec(
+                select(Exposure.created_at).where(
+                    *DashboardService._time_conditions(
+                        Exposure.created_at, window_start, window_end
+                    )
+                )
+            ).all()
+        )
+        event_rows = list(
+            session.exec(
+                select(Event.created_at, Event.event_type).where(
+                    Event.event_type.in_([EventType.CLICK, EventType.LIKE]),
+                    *DashboardService._time_conditions(
+                        Event.created_at, window_start, window_end
+                    ),
+                )
+            ).all()
+        )
+
+        bucket_minutes = DashboardService._BUCKET_MINUTES[window]
+        bucket_delta = timedelta(minutes=bucket_minutes)
+        if window_start is not None:
+            bucket_anchor = window_start
+            bucket_count = max(
+                1,
+                int((window_end - bucket_anchor).total_seconds() // bucket_delta.total_seconds()),
+            )
+        else:
+            timestamps = request_times + exposure_times + [row[0] for row in event_rows]
+            earliest = min(timestamps, default=window_end)
+            bucket_anchor = earliest.replace(hour=0, minute=0, second=0, microsecond=0)
+            bucket_count = max(
+                1,
+                int((window_end - bucket_anchor) // bucket_delta) + 1,
+            )
+
+        buckets = [
+            {"requests": 0, "exposures": 0, "clicks": 0, "likes": 0}
+            for _ in range(bucket_count)
+        ]
+
+        def bucket_index(timestamp: datetime) -> int | None:
+            index = int((timestamp - bucket_anchor) // bucket_delta)
+            return index if 0 <= index < bucket_count else None
+
+        for timestamp in request_times:
+            if (index := bucket_index(timestamp)) is not None:
+                buckets[index]["requests"] += 1
+        for timestamp in exposure_times:
+            if (index := bucket_index(timestamp)) is not None:
+                buckets[index]["exposures"] += 1
+        for timestamp, event_type in event_rows:
+            if (index := bucket_index(timestamp)) is None:
+                continue
+            if event_type == EventType.CLICK:
+                buckets[index]["clicks"] += 1
+            else:
+                buckets[index]["likes"] += 1
+
+        points = []
+        for index, bucket in enumerate(buckets):
+            exposures = bucket["exposures"]
+            points.append(
+                DashboardTrendPoint(
+                    bucket_start=bucket_anchor + index * bucket_delta,
+                    requests=bucket["requests"],
+                    exposures=exposures,
+                    clicks=bucket["clicks"],
+                    likes=bucket["likes"],
+                    ctr=bucket["clicks"] / exposures if exposures else 0.0,
+                )
+            )
+        return DashboardTrends(
+            window=window,
+            window_start=window_start,
+            window_end=window_end,
+            bucket_minutes=bucket_minutes,
+            points=points,
+        )
 
     @staticmethod
     def user_debug(session: Session, user_id: int) -> dict[str, object]:

@@ -4,10 +4,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
 from app.config import Settings
+from app.constants import EventType, FeedType
 from app.database import Database
 from app.main import create_app
+from app.models import Event, Exposure, RecommendationRequest, User
 from app.recommendation import DeterministicRecommendationEngine
 from app.seed import DEMO_PASSWORD
 
@@ -161,7 +164,11 @@ def test_dashboard_diagnostics_and_request_trace_use_real_events() -> None:
         client.post("/api/auth/logout")
         login(client, "admin")
         overview = client.get("/api/admin/dashboard").json()
+        assert overview["window"] == "24h"
+        assert overview["window_start"] is not None
+        assert overview["window_end"] is not None
         assert overview["users"] == 3
+        assert overview["active_users"] == 1
         assert overview["requests"] == 1
         assert overview["exposures"] == 4
         assert overview["clicks"] == 1
@@ -187,6 +194,122 @@ def test_dashboard_diagnostics_and_request_trace_use_real_events() -> None:
         assert len(trace["events"]) == 6  # 4 impressions plus click and like
         models = client.get("/api/admin/models").json()
         assert models[0]["id"] == "deterministic-v1"
+
+
+def test_dashboard_windows_trends_and_diagnostics_share_utc_bounds() -> None:
+    with make_client() as client:
+        login(client, "alice")
+        current_feed = client.get("/api/feeds/explore?page_size=4").json()
+        assert client.post(
+            "/api/events", json=behavior_payload(current_feed, "click")
+        ).status_code == 200
+        current_like = behavior_payload(current_feed, "like")
+        current_like["item_id"] = current_feed["items"][1]["item_id"]
+        assert client.post("/api/events", json=current_like).status_code == 200
+
+        two_hours_ago = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
+        old_request_id = str(uuid4())
+        with Session(client.app.state.db.engine) as session:
+            alice = session.exec(select(User).where(User.username == "alice")).one()
+            session.add(
+                RecommendationRequest(
+                    id=old_request_id,
+                    user_id=alice.id,
+                    feed_type=FeedType.EXPLORE,
+                    model_version="deterministic-v1",
+                    page=1,
+                    page_size=1,
+                    created_at=two_hours_ago,
+                )
+            )
+            session.flush()
+            session.add(
+                Exposure(
+                    request_id=old_request_id,
+                    user_id=alice.id,
+                    item_id=1,
+                    position=1,
+                    source="explore",
+                    score=0.5,
+                    reason="historical fixture",
+                    created_at=two_hours_ago,
+                )
+            )
+            session.add(
+                Event(
+                    event_id=str(uuid4()),
+                    request_id=old_request_id,
+                    user_id=alice.id,
+                    item_id=1,
+                    position=1,
+                    event_type=EventType.CLICK,
+                    source="explore",
+                    created_at=two_hours_ago,
+                )
+            )
+            session.commit()
+
+        assert client.get("/api/admin/dashboard/trends?window=1h").status_code == 403
+        assert client.get("/api/admin/feeds/diagnostics?window=1h").status_code == 403
+        client.post("/api/auth/logout")
+        login(client, "admin")
+
+        overview_1h = client.get("/api/admin/dashboard?window=1h").json()
+        overview_6h = client.get("/api/admin/dashboard?window=6h").json()
+        overview_all = client.get("/api/admin/dashboard?window=all").json()
+        assert (overview_1h["requests"], overview_1h["exposures"], overview_1h["clicks"]) == (
+            1,
+            4,
+            1,
+        )
+        assert (overview_6h["requests"], overview_6h["exposures"], overview_6h["clicks"]) == (
+            2,
+            5,
+            2,
+        )
+        assert overview_1h["likes"] == overview_6h["likes"] == 1
+        assert overview_all["window_start"] is None
+        for global_key in ("users", "offline_items", "current_model_version"):
+            assert overview_1h[global_key] == overview_6h[global_key] == overview_all[global_key]
+
+        diagnostics_1h = client.get("/api/admin/feeds/diagnostics?window=1h").json()
+        diagnostics_6h = client.get("/api/admin/feeds/diagnostics?window=6h").json()
+        explore_1h = next(row for row in diagnostics_1h if row["feed_type"] == "explore")
+        explore_6h = next(row for row in diagnostics_6h if row["feed_type"] == "explore")
+        assert (explore_1h["requests"], explore_1h["exposures"], explore_1h["clicks"]) == (
+            1,
+            4,
+            1,
+        )
+        assert (explore_6h["requests"], explore_6h["exposures"], explore_6h["clicks"]) == (
+            2,
+            5,
+            2,
+        )
+
+        expected = {"1h": (5, 12, 1, 4, 1), "6h": (30, 12, 2, 5, 2)}
+        for window, (minutes, point_count, requests, exposures, clicks) in expected.items():
+            trend = client.get(f"/api/admin/dashboard/trends?window={window}").json()
+            assert trend["bucket_minutes"] == minutes
+            assert len(trend["points"]) == point_count
+            assert sum(point["requests"] for point in trend["points"]) == requests
+            assert sum(point["exposures"] for point in trend["points"]) == exposures
+            assert sum(point["clicks"] for point in trend["points"]) == clicks
+            assert sum(point["likes"] for point in trend["points"]) == 1
+            assert any(
+                point["requests"] == point["exposures"] == point["clicks"] == 0
+                for point in trend["points"]
+            )
+
+        trend_24h = client.get("/api/admin/dashboard/trends?window=24h").json()
+        assert trend_24h["bucket_minutes"] == 60
+        assert len(trend_24h["points"]) == 24
+        trend_all = client.get("/api/admin/dashboard/trends?window=all").json()
+        assert trend_all["window_start"] is None
+        assert trend_all["bucket_minutes"] == 1_440
+        assert sum(point["requests"] for point in trend_all["points"]) == 2
+        assert client.get("/api/admin/dashboard?window=invalid").status_code == 422
+        assert client.get("/api/admin/dashboard/trends?window=invalid").status_code == 422
 
 
 def test_force_offline_restore_precedence_and_audit() -> None:

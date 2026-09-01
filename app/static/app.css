@@ -175,6 +175,27 @@ h2 { margin-bottom: 0; font-size: 17px; line-height: 1.35; }
 
 .segmented-control button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 700; }
 
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.control-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.window-control {
+  grid-template-columns: repeat(4, minmax(62px, 1fr));
+  width: min(310px, 100%);
+}
+
 .feed-meta {
   display: flex;
   flex-wrap: wrap;
@@ -256,6 +277,62 @@ h2 { margin-bottom: 0; font-size: 17px; line-height: 1.35; }
 .skeleton { background: #e9eeec; animation: pulse 1.2s ease-in-out infinite alternate; }
 @keyframes pulse { to { opacity: .5; } }
 
+.dashboard-grid-state { grid-column: 1 / -1; }
+.trend-heading { display: flex; gap: 18px; align-items: end; justify-content: space-between; margin-bottom: 14px; }
+.trend-heading h2 { margin-bottom: 4px; }
+.trend-heading .muted { font-size: 12px; }
+.metric-control {
+  grid-template-columns: repeat(5, minmax(62px, 1fr));
+  width: min(410px, 100%);
+}
+.trend-stage {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.trend-state {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--text-soft);
+  font-size: 13px;
+  text-align: center;
+}
+.trend-state-error { background: var(--danger-soft); color: #7e2a2a; }
+.trend-chart { position: relative; width: 100%; height: 100%; }
+.trend-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.trend-grid-line { stroke: #e2e8e5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.trend-axis-label { fill: var(--text-soft); font-size: 11px; letter-spacing: 0; }
+.trend-area { fill: var(--accent-soft); opacity: .72; }
+.trend-line { fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.trend-point { fill: var(--surface); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: default; }
+.trend-point:hover, .trend-point:focus { fill: var(--accent); outline: none; stroke: var(--surface); stroke-width: 4; }
+.trend-tooltip {
+  position: absolute;
+  z-index: 2;
+  max-width: min(230px, calc(100% - 16px));
+  padding: 6px 9px;
+  border: 1px solid #b8c5c1;
+  border-radius: 5px;
+  background: rgb(23 33 30 / 94%);
+  color: white;
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--border); }
 .detail-row { display: grid; grid-template-columns: minmax(120px, .7fr) 1fr; min-height: 44px; gap: 14px; align-items: start; padding: 11px 13px; background: var(--surface); }
 .detail-key { color: var(--text-soft); font-size: 12px; }
@@ -333,6 +410,8 @@ textarea { min-height: 84px; resize: vertical; }
   .primary-nav a { flex: 0 0 auto; }
   .page-shell { width: min(100% - 28px, 1240px); padding-top: 22px; }
   .page-heading { display: grid; align-items: start; }
+  .dashboard-actions { display: grid; grid-template-columns: 1fr auto; width: 100%; align-items: end; }
+  .window-control { width: 100%; }
   h1 { font-size: 24px; }
   .segmented-control { width: 100%; }
   .feed-grid { grid-template-columns: 1fr; }
@@ -341,6 +420,11 @@ textarea { min-height: 84px; resize: vertical; }
   .feed-meta code { max-width: calc(100vw - 120px); }
   .metric-grid, .detail-grid, .diagnostic-grid { grid-template-columns: 1fr; }
   .metric-card { min-height: 82px; }
+  .trend-heading { align-items: stretch; flex-direction: column; }
+  .metric-control { width: 100%; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .metric-control button { min-width: 0; padding-inline: 5px; font-size: 12px; }
+  .trend-stage { height: 260px; }
+  .trend-axis-label { font-size: 13px; }
   .detail-row { grid-template-columns: minmax(95px, .65fr) 1fr; }
   .section-heading { align-items: start; flex-direction: column; gap: 3px; }
   .field-pair { grid-template-columns: 1fr; }

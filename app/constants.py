@@ -41,3 +41,9 @@ class ModelStatus(StrEnum):
     PUBLISHED = "published"
     FAILED = "failed"
 
+
+class DashboardWindow(StrEnum):
+    HOUR_1 = "1h"
+    HOUR_6 = "6h"
+    HOUR_24 = "24h"
+    ALL = "all"

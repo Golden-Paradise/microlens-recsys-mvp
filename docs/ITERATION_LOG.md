@@ -82,3 +82,35 @@ Each subsequent entry must include:
   an upstream httpx2 migration warning. Neither changes results or test status.
 - Known limitation: all four collaborative policies still miss the 576 pure-cold test
   targets; ItemCF is not described as a pure-item cold-start solution.
+
+## 2026-09-01 22:00 +08:00 - G2 time-windowed Dashboard and trends
+
+- Base commit: `e209da5`; responsible Agents: Online subagent for API/aggregation,
+  Frontend subagent for templates/JS/CSS, main Agent for role semantics, browser QA and
+  screenshots.
+- API decision: `1h`, `6h`, `24h`, and `all` use UTC half-open intervals `[start, end)`.
+  Their bucket sizes are 5, 30, 60 and 1,440 minutes. Fixed windows return 12, 12 and
+  24 zero-filled buckets; `all` starts at the earliest recorded UTC day.
+- Scope decision: users, offline items and current model are global state. Active users,
+  requests, exposures, clicks, CTR, likes, feed shares, diagnostics and hot items use the
+  selected activity window.
+- Commands: `uv run pytest tests/test_online.py -q`, `uv run pytest tests/test_ui.py -q`,
+  `uv run ruff check .`, and `node --check app/static/app.js`.
+- Result: online tests 9 passed, UI tests 11 passed, full suite 30 passed, Ruff and Node
+  syntax checks passed.
+- Browser evidence: administrator changed 24h to 6h; all three aggregate requests used
+  `window=6h`; the API and SVG contained 12 points at 30 minutes per point. Browser console
+  warnings/errors were empty.
+- Desktop 1280x720: document scroll width 1,265 within 1,280 CSS pixels. Mobile 390x844:
+  document scroll width 375 within 390 pixels; chart width 345.33 pixels with 12 visible
+  points and no overlap.
+- Screenshots: `reports/screenshots/v0.2/admin-dashboard-trends-6h-1280x720.png`,
+  `admin-dashboard-chart-6h-1280x720.png`, `admin-dashboard-trends-6h-390x844.png`, and
+  `admin-dashboard-chart-6h-390x844.png`.
+- Failure and fix: browser QA showed 3 ordinary users but 4 active users because an admin
+  had opened a Feed. Active-user aggregation now joins `users` and filters `role=user`;
+  a regression assertion requires one active ordinary user in the API fixture. The real
+  Dashboard now reports 3 users and 3 active users.
+- Boundary review: an earlier implementation used an inclusive end condition. It was
+  changed to `< window_end` so overview and trend buckets cannot disagree at the boundary.
+- G1 commit: `e209da5`. The G2 commit SHA is added in the G3 entry after commit.

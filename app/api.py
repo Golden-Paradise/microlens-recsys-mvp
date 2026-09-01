@@ -5,10 +5,11 @@ from sqlalchemy import or_
 from sqlmodel import select
 
 from app.auth import CurrentAdmin, CurrentUser, SessionDep
-from app.constants import FeedType, ItemStatus, OperationType
+from app.constants import DashboardWindow, FeedType, ItemStatus, OperationType
 from app.models import Event, Item, Operation, User
 from app.schemas import (
     DashboardOverview,
+    DashboardTrends,
     EventCreate,
     EventResponse,
     FeedResponse,
@@ -93,16 +94,34 @@ def get_item(item_id: int, user: CurrentUser, session: SessionDep) -> Item:
 
 @router.get("/admin/dashboard", response_model=DashboardOverview)
 def dashboard(
-    request: Request, admin: CurrentAdmin, session: SessionDep
+    request: Request,
+    admin: CurrentAdmin,
+    session: SessionDep,
+    window: DashboardWindow = DashboardWindow.HOUR_24,
 ) -> DashboardOverview:
     return DashboardService.overview(
-        session, request.app.state.recommendation_engine.model_version
+        session,
+        request.app.state.recommendation_engine.model_version,
+        window,
     )
 
 
+@router.get("/admin/dashboard/trends", response_model=DashboardTrends)
+def dashboard_trends(
+    admin: CurrentAdmin,
+    session: SessionDep,
+    window: DashboardWindow = DashboardWindow.HOUR_24,
+) -> DashboardTrends:
+    return DashboardService.trends(session, window)
+
+
 @router.get("/admin/feeds/diagnostics")
-def feed_diagnostics(admin: CurrentAdmin, session: SessionDep) -> list[dict[str, object]]:
-    return DashboardService.feed_diagnostics(session)
+def feed_diagnostics(
+    admin: CurrentAdmin,
+    session: SessionDep,
+    window: DashboardWindow = DashboardWindow.HOUR_24,
+) -> list[dict[str, object]]:
+    return DashboardService.feed_diagnostics(session, window)
 
 
 @router.get("/admin/users/{user_id}/debug")
