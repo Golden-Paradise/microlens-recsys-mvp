@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">CONTENT OPERATIONS</p>
+    <h1>内容运营</h1>
+    <p class="muted">所有变更均写入审计记录；下线状态优先于任何强推策略。</p>
+  </div>
+  <a class="button button-secondary" href="/db-admin/" target="_blank" rel="noopener">查看数据审计</a>
+</header>
+
+<section class="toolbar" aria-label="内容筛选">
+  <form id="content-search-form" class="inline-form grow">
+    <label class="visually-hidden" for="content-query">搜索标题或内容 ID</label>
+    <input id="content-query" name="q" type="search" placeholder="搜索标题或内容 ID">
+    <label class="visually-hidden" for="content-status">内容状态</label>
+    <select id="content-status" name="status">
+      <option value="">全部状态</option>
+      <option value="online">在线</option>
+      <option value="offline">已下线</option>
+    </select>
+    <button class="button button-secondary" type="submit">搜索</button>
+  </form>
+</section>
+
+<div id="contents-error" class="state-panel state-error" hidden></div>
+<div class="table-wrap">
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>标题</th><th>状态</th><th>训练交互</th><th>点赞 / 浏览</th><th>操作</th></tr></thead>
+    <tbody id="contents-body"><tr><td colspan="6" class="table-state">正在加载内容…</td></tr></tbody>
+  </table>
+</div>
+
+<dialog id="operation-dialog" class="operation-dialog">
+  <form id="operation-form" method="dialog" class="form-stack">
+    <div class="dialog-heading">
+      <div>
+        <p class="eyebrow">OPERATION</p>
+        <h2 id="operation-title">内容操作</h2>
+      </div>
+      <button class="icon-command" value="cancel" type="button" data-close-dialog title="关闭" aria-label="关闭">×</button>
+    </div>
+    <input id="operation-item-id" name="item_id" type="hidden">
+    <input id="operation-type" name="operation_type" type="hidden">
+    <label for="operation-reason">操作原因</label>
+    <textarea id="operation-reason" name="reason" minlength="3" maxlength="300" required placeholder="至少 3 个字符"></textarea>
+    <div id="force-fields" class="form-stack" hidden>
+      <label for="operation-scope">强推范围</label>
+      <select id="operation-scope" name="scope">
+        <option value="all">全部用户</option>
+        <option value="user">指定用户</option>
+        <option value="feed">指定信息流</option>
+      </select>
+      <label for="operation-scope-value">范围值</label>
+      <input id="operation-scope-value" name="scope_value" placeholder="用户 ID；全部用户时留空">
+      <label for="operation-feed">信息流</label>
+      <select id="operation-feed" name="feed_type">
+        <option value="">不限</option>
+        <option value="personalized">个性化</option>
+        <option value="popular">热门</option>
+        <option value="explore">探索</option>
+      </select>
+      <div class="field-pair">
+        <div><label for="operation-starts">生效时间</label><input id="operation-starts" name="starts_at" type="datetime-local"></div>
+        <div><label for="operation-ends">失效时间</label><input id="operation-ends" name="ends_at" type="datetime-local"></div>
+      </div>
+    </div>
+    <p id="operation-error" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button class="button button-ghost" type="button" data-close-dialog>取消</button>
+      <button class="button button-primary" type="submit">确认执行</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

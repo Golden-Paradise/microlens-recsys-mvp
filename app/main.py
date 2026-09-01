@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.admin import configure_read_only_admin
 from app.api import router as api_router
 from app.config import Settings
 from app.database import Database
@@ -10,6 +11,7 @@ from app.recommendation import (
     RecommendationEngine,
 )
 from app.seed import seed_demo_data
+from app.web import register_web
 from recsys.model import ModelBundle, load_model_bundle
 
 
@@ -57,6 +59,8 @@ def create_app(
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    register_web(application)
+    configure_read_only_admin(application, database.engine)
     return application
 
 

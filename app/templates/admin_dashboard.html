@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">OPERATIONS DASHBOARD</p>
+    <h1>运营看板</h1>
+    <p class="muted">指标来自当前 SQLite 事件、曝光与推荐请求。</p>
+  </div>
+  <button id="refresh-dashboard" class="button button-secondary" type="button">刷新数据</button>
+</header>
+
+<div id="dashboard-error" class="state-panel state-error" hidden></div>
+<section aria-labelledby="overview-title">
+  <div class="section-heading"><h2 id="overview-title">业务概览</h2></div>
+  <div id="overview-metrics" class="metric-grid">
+    <div class="metric-card skeleton"></div><div class="metric-card skeleton"></div>
+    <div class="metric-card skeleton"></div><div class="metric-card skeleton"></div>
+  </div>
+</section>
+
+<section class="section-band" aria-labelledby="diagnostics-title">
+  <div class="section-heading">
+    <h2 id="diagnostics-title">信息流诊断</h2>
+    <span class="muted">流量占比、热门内容与回退情况</span>
+  </div>
+  <div id="feed-diagnostics" class="data-region"></div>
+  <form id="request-trace-form" class="inline-form trace-form">
+    <label for="trace-request-id">请求 ID</label>
+    <input id="trace-request-id" name="request_id" required minlength="36" maxlength="36" placeholder="输入 Feed 顶部展示的 request_id">
+    <button class="button button-secondary" type="submit">查询链路</button>
+  </form>
+  <div id="request-trace-result" class="data-region muted">可按请求 ID 查看曝光顺序与后续行为。</div>
+</section>
+
+<section class="section-band" aria-labelledby="user-debug-title">
+  <div class="section-heading"><h2 id="user-debug-title">用户调试</h2></div>
+  <form id="user-debug-form" class="inline-form">
+    <label for="debug-user-id">用户 ID</label>
+    <input id="debug-user-id" name="user_id" type="number" min="1" required placeholder="例如 1">
+    <button class="button button-secondary" type="submit">查询</button>
+  </form>
+  <div id="user-debug-result" class="data-region muted">输入用户 ID 查看画像、行为与推荐上下文。</div>
+</section>
+
+<section class="section-band" aria-labelledby="model-title">
+  <div class="section-heading"><h2 id="model-title">模型运行</h2></div>
+  <div id="model-list" class="data-region"></div>
+</section>
+{% endblock %}

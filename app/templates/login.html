@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-panel" aria-labelledby="login-title">
+  <div class="login-identity">
+    <span class="brand-mark brand-mark-large" aria-hidden="true">M</span>
+    <div>
+      <p class="eyebrow">MICROLENS CONSOLE</p>
+      <h1 id="login-title">登录推荐系统</h1>
+      <p class="muted">进入个性化信息流或运营控制台。</p>
+    </div>
+  </div>
+
+  <form id="login-form" class="form-stack" novalidate>
+    <label for="username">用户名</label>
+    <input id="username" name="username" autocomplete="username" required maxlength="64" value="alice">
+    <label for="password">密码</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required minlength="8">
+    <p id="login-error" class="form-error" role="alert" hidden></p>
+    <button class="button button-primary button-wide" type="submit">登录</button>
+  </form>
+</section>
+{% endblock %}

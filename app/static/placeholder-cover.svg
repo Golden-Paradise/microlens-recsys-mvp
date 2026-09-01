@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">MicroLens 内容封面占位图</title>
+  <desc id="desc">深绿色背景上的抽象播放标记</desc>
+  <rect width="640" height="360" fill="#173f39"/>
+  <rect x="42" y="42" width="556" height="276" rx="8" fill="#22544c" stroke="#5f9a8c" stroke-width="2"/>
+  <circle cx="320" cy="180" r="70" fill="#f2f6f4" opacity=".95"/>
+  <path d="M298 138v84l70-42z" fill="#19725f"/>
+  <path d="M72 286h162" stroke="#88b8ab" stroke-width="8"/>
+  <path d="M72 306h104" stroke="#c4dbd4" stroke-width="5"/>
+</svg>

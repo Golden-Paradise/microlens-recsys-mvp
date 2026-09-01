@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">USER PROFILE</p>
+    <h1>我的画像</h1>
+    <p class="muted">行为反馈会改变画像版本，并影响下一次个性化推荐。</p>
+  </div>
+  <button id="refresh-profile" class="button button-secondary" type="button">刷新</button>
+</header>
+
+<div id="profile-loading" class="state-panel">正在读取画像…</div>
+<div id="profile-error" class="state-panel state-error" hidden></div>
+<section id="profile-summary" class="metric-grid" aria-label="画像摘要" hidden></section>
+<section class="section-band" aria-labelledby="profile-detail-title">
+  <div class="section-heading">
+    <h2 id="profile-detail-title">行为与偏好明细</h2>
+  </div>
+  <div id="profile-details" class="detail-grid"></div>
+</section>
+{% endblock %}

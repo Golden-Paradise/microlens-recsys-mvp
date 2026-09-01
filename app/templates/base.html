@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{{ title }} · MicroLens Console</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+  <script src="{{ url_for('static', path='/app.js') }}" defer></script>
+</head>
+<body data-page="{{ page }}">
+  {% if page != "login" %}
+  <header class="topbar">
+    <a class="brand" href="/feed" aria-label="MicroLens Console 首页">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span>MicroLens Console</span>
+    </a>
+    <nav class="primary-nav" aria-label="主导航">
+      <a href="/feed" {% if page == "feed" %}aria-current="page"{% endif %}>推荐流</a>
+      <a href="/profile" {% if page == "profile" %}aria-current="page"{% endif %}>我的画像</a>
+      <a href="/admin/dashboard" data-admin-only hidden {% if page == "dashboard" %}aria-current="page"{% endif %}>运营看板</a>
+      <a href="/admin/contents" data-admin-only hidden {% if page == "contents" %}aria-current="page"{% endif %}>内容运营</a>
+    </nav>
+    <div class="account-tools">
+      <span id="current-user" class="user-label">正在确认身份</span>
+      <button id="logout-button" class="icon-command" type="button" title="退出登录" aria-label="退出登录">↪</button>
+    </div>
+  </header>
+  {% endif %}
+
+  <main class="page-shell{% if page == 'login' %} login-shell{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

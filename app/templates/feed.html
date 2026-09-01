@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">RECOMMENDATION FEED</p>
+    <h1>内容推荐</h1>
+  </div>
+  <div class="segmented-control" role="tablist" aria-label="推荐流类型">
+    <button type="button" role="tab" aria-selected="true" data-feed="personalized">个性化</button>
+    <button type="button" role="tab" aria-selected="false" data-feed="popular">热门</button>
+    <button type="button" role="tab" aria-selected="false" data-feed="explore">探索</button>
+  </div>
+</header>
+
+<section class="feed-meta" aria-live="polite">
+  <div><span class="meta-label">模型版本</span><strong id="model-version">--</strong></div>
+  <div><span class="meta-label">请求 ID</span><code id="request-id">--</code></div>
+  <div id="fallback-note" class="status-note" hidden></div>
+</section>
+
+<div id="feed-loading" class="state-panel" role="status">正在加载推荐结果…</div>
+<div id="feed-error" class="state-panel state-error" role="alert" hidden>
+  <strong>推荐流暂时不可用</strong>
+  <span id="feed-error-message">请稍后重试。</span>
+  <button id="retry-feed" class="button button-secondary" type="button">重试</button>
+</div>
+<div id="feed-empty" class="state-panel" hidden>
+  <strong>暂时没有更多内容</strong>
+  <span>可以切换其他推荐流继续浏览。</span>
+</div>
+
+<section id="feed-grid" class="feed-grid" aria-label="推荐内容列表"></section>
+<div class="load-more-row">
+  <button id="load-more" class="button button-secondary" type="button" hidden>加载更多</button>
+</div>
+{% endblock %}
