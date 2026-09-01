@@ -186,7 +186,16 @@ def request_trace(
 
 
 @router.get("/admin/models")
-def model_versions(admin: CurrentAdmin, session: SessionDep) -> list[object]:
+def model_versions(
+    request: Request, admin: CurrentAdmin, session: SessionDep
+) -> list[object]:
+    manager = request.app.state.model_manager
+    if manager is not None:
+        DashboardService.sync_model_projection(
+            session,
+            request.app.state.settings.artifact_dir,
+            manager.runtime(),
+        )
     return DashboardService.models(session)
 
 
@@ -218,9 +227,14 @@ def publish_model(
     version: str,
     request: Request,
     admin: CurrentAdmin,
+    session: SessionDep,
 ) -> ModelRuntimeResponse:
     try:
-        return _model_manager(request).publish(version)
+        runtime = _model_manager(request).publish(version)
+        DashboardService.sync_model_projection(
+            session, request.app.state.settings.artifact_dir, runtime
+        )
+        return runtime
     except ArtifactNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ArtifactValidationError as exc:
@@ -230,9 +244,15 @@ def publish_model(
 
 
 @router.post("/admin/models/rollback", response_model=ModelRuntimeResponse)
-def rollback_model(request: Request, admin: CurrentAdmin) -> ModelRuntimeResponse:
+def rollback_model(
+    request: Request, admin: CurrentAdmin, session: SessionDep
+) -> ModelRuntimeResponse:
     try:
-        return _model_manager(request).rollback()
+        runtime = _model_manager(request).rollback()
+        DashboardService.sync_model_projection(
+            session, request.app.state.settings.artifact_dir, runtime
+        )
+        return runtime
     except (ArtifactValidationError, ModelActivationError, OSError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

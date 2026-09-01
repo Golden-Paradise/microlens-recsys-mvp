@@ -11,6 +11,7 @@ from app.recommendation import (
     RecommendationEngine,
 )
 from app.seed import seed_demo_data
+from app.services import DashboardService
 from app.web import register_web
 from recsys.model import ModelBundle
 
@@ -40,6 +41,12 @@ def create_app(
                 model_bundle=model_bundle,
                 seed_official_catalog=settings.seed_official_catalog,
             )
+            if model_manager is not None:
+                DashboardService.sync_model_projection(
+                    session,
+                    settings.artifact_dir,
+                    model_manager.runtime(),
+                )
 
     application = FastAPI(title=settings.name)
     application.add_middleware(

@@ -201,3 +201,67 @@ def test_model_activation_errors_map_to_stable_http_statuses(tmp_path: Path) -> 
             publish_error=ModelActivationError("No previous model version")
         )
         assert client.post("/api/admin/models/rollback").status_code == 409
+
+
+def _write_projection_manifest(artifact_root: Path, version: str) -> None:
+    artifact = artifact_root / version
+    artifact.mkdir(parents=True)
+    (artifact / "manifest.json").write_text(
+        json.dumps(
+            {
+                "model_version": version,
+                "data_version": "fixture-v1",
+                "created_at": "2026-09-02T01:00:00Z",
+                "algorithm": "fixture",
+                "factors": 2,
+                "iterations": 1,
+                "regularization": 0.01,
+                "alpha": 1.0,
+                "top_k": 20,
+                "files": {},
+                "metrics": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_model_registry_projects_artifacts_and_hides_builtin_fallback(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    _write_projection_manifest(artifact_root, "content-v1")
+    _write_projection_manifest(artifact_root, "candidate-v2")
+    with _client(tmp_path) as client:
+        client.app.state.model_manager = FakeManager()
+        _login(client, "admin")
+
+        response = client.get("/api/admin/models")
+
+        assert response.status_code == 200
+        rows = {row["id"]: row for row in response.json()}
+        assert set(rows) == {"content-v1", "candidate-v2"}
+        assert rows["content-v1"]["status"] == "published"
+        assert rows["candidate-v2"]["status"] == "candidate"
+
+
+def test_startup_deterministic_fallback_is_visible_in_request_observability(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        secret_key="test-secret-key-with-enough-entropy",
+        database_url="sqlite://",
+        artifact_dir=tmp_path / "missing-artifacts",
+        cookie_secure=False,
+        seed_demo_data=True,
+        seed_official_catalog=False,
+    )
+    with TestClient(create_app(settings=settings)) as client:
+        _login(client, "alice")
+        feed = client.get("/api/feeds/personalized?page_size=4")
+        assert feed.status_code == 200
+        assert "ModelManager startup fallback" in feed.json()["fallback_reason"]
+        client.post("/api/auth/logout")
+        _login(client, "admin")
+        observability = client.get("/api/admin/observability?window=24h").json()
+        assert observability["requests"] == 1
+        assert observability["fallback_count"] == 1
+        assert observability["fallback_rate"] == 1.0

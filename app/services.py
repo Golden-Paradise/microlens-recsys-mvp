@@ -53,6 +53,7 @@ from app.schemas import (
     RequestTracesResponse,
     RequestTraceSummary,
 )
+from recsys.contracts import ModelManifest
 
 
 def _naive_utc(value: datetime | None) -> datetime | None:
@@ -113,7 +114,7 @@ class FeedService:
         available = [item for item in online_items if item.id not in excluded]
         feedback = self._feedback_by_bucket(session, user.id)
         exposure_counts = self._exposure_counts(session)
-        fallback_reason: str | None = None
+        fallback_reason = getattr(self.engine, "runtime_fallback_reason", None)
         model_version = self.engine.model_version
 
         try:
@@ -161,7 +162,7 @@ class FeedService:
             page=page,
             page_size=page_size,
             fallback_reason=fallback_reason,
-            latency_ms=(time.perf_counter() - started) * 1_000,
+            latency_ms=0.0,
         )
         session.add(request_row)
         # SQLAlchemy has no ORM relationship here to infer flush order from, so persist
@@ -206,6 +207,8 @@ class FeedService:
             )
 
         try:
+            session.flush()
+            request_row.latency_ms = (time.perf_counter() - started) * 1_000
             session.commit()
         except IntegrityError as exc:
             session.rollback()
@@ -942,8 +945,79 @@ class DashboardService:
         return {"request": request, "exposures": exposures, "events": events}
 
     @staticmethod
+    def sync_model_projection(
+        session: Session,
+        artifact_root: Path,
+        runtime: ModelRuntimeResponse,
+    ) -> None:
+        root = artifact_root.resolve()
+        current_version = runtime.current.model_version if runtime.current else None
+        rows = list(session.exec(select(ModelVersion)).all())
+        rows_by_id = {row.id: row for row in rows}
+
+        if root.is_dir():
+            for artifact in sorted(path for path in root.iterdir() if path.is_dir()):
+                manifest_path = artifact / "manifest.json"
+                try:
+                    manifest = ModelManifest.model_validate_json(
+                        manifest_path.read_text(encoding="utf-8")
+                    )
+                except (FileNotFoundError, OSError, ValueError):
+                    continue
+                if manifest.model_version != artifact.name:
+                    continue
+                row = rows_by_id.get(manifest.model_version)
+                metrics_json = json.dumps(
+                    {
+                        "algorithm": manifest.algorithm,
+                        "factors": manifest.factors,
+                        "metrics": {
+                            key: value.model_dump(mode="json")
+                            for key, value in manifest.metrics.items()
+                        },
+                    },
+                    ensure_ascii=False,
+                )
+                if row is None:
+                    row = ModelVersion(
+                        id=manifest.model_version,
+                        data_version=manifest.data_version,
+                        artifact_path=str(artifact),
+                        metrics_json=metrics_json,
+                        trained_at=_naive_utc(manifest.created_at) or utc_now(),
+                    )
+                    rows_by_id[row.id] = row
+                row.status = (
+                    ModelStatus.PUBLISHED
+                    if manifest.model_version == current_version
+                    else ModelStatus.CANDIDATE
+                )
+                row.data_version = manifest.data_version
+                row.artifact_path = str(artifact)
+                row.metrics_json = metrics_json
+                row.trained_at = _naive_utc(manifest.created_at) or row.trained_at
+                row.published_at = (
+                    _naive_utc(runtime.loaded_at)
+                    if manifest.model_version == current_version
+                    else None
+                )
+                session.add(row)
+
+        for row in rows_by_id.values():
+            if row.artifact_path.startswith("builtin://"):
+                continue
+            if row.id == current_version:
+                row.status = ModelStatus.PUBLISHED
+                row.published_at = _naive_utc(runtime.loaded_at)
+            elif row.status == ModelStatus.PUBLISHED:
+                row.status = ModelStatus.CANDIDATE
+                row.published_at = None
+            session.add(row)
+        session.commit()
+
+    @staticmethod
     def models(session: Session) -> list[ModelVersion]:
-        return list(
+        rows = list(
             session.exec(
                 select(ModelVersion).order_by(
                     (ModelVersion.status == ModelStatus.PUBLISHED).desc(),
@@ -951,3 +1025,4 @@ class DashboardService:
                 )
             ).all()
         )
+        return [row for row in rows if not row.artifact_path.startswith("builtin://")]

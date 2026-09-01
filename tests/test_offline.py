@@ -25,7 +25,11 @@ def _write_raw(raw_dir: Path) -> None:
         encoding="utf-8",
     )
     (raw_dir / OFFICIAL_FILES["titles"]).write_text(
-        "item,title\n" + "".join(f'{item},"Item {item}"\n' for item in range(1, 7)),
+        "item,title\n"
+        + "".join(
+            f'{item},"Item {item}"\n' if item != 6 else '6,""\n'
+            for item in range(1, 7)
+        ),
         encoding="utf-8",
     )
     (raw_dir / OFFICIAL_FILES["stats"]).write_text(
@@ -104,7 +108,7 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
         encoding="utf-8",
     )
     artifact_root = tmp_path / "artifacts"
-    artifact = train_pipeline(prepared.path, artifact_root, config)
+    artifact = train_pipeline(prepared.path, artifact_root, config, activate=True)
     bundle = load_model_bundle(artifact_root)
 
     assert bundle.manifest.factors in {2, 3}
@@ -168,9 +172,15 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
         "popularity.json",
         "metrics.json",
         "badcases.csv",
+        "manifest.json",
         "title_tfidf_items.npz",
         "content_config.json",
     }
+    assert bundle.content_retriever is not None
+    blank_title_index = bundle.item_ids.index(6)
+    assert bundle.content_retriever.item_vectors.getrow(blank_title_index).nnz == 0
+    expected_test_policies = {"bm25", metrics["selection"]["selected_candidate"]}
+    assert set(metrics["test"]) == expected_test_policies
     manager = ModelManager(artifact_root)
     assert manager.runtime().status == "ready"
     assert manager.runtime().validation.status == "ok"
@@ -189,7 +199,9 @@ def test_each_serving_policy_hard_filters_seen_and_excluded(prepared, tmp_path: 
         "[fusion]\nrrf_k = 60\n",
         encoding="utf-8",
     )
-    artifact = train_pipeline(prepared.path, tmp_path / "artifacts", config)
+    artifact_root = tmp_path / "artifacts"
+    artifact = train_pipeline(prepared.path, artifact_root, config)
+    assert not (artifact_root / "latest.json").exists()
     bundle = load_model_bundle(artifact)
 
     for policy in ["als", "cosine", "bm25", "rrf", "bm25_content"]:

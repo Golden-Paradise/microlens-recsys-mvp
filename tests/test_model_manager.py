@@ -63,7 +63,14 @@ def _write_artifact(
             artifact / "title_tfidf_items.npz",
             sparse.csr_matrix(np.ones((3, 2), dtype=np.float32)),
         )
-        np.savez(artifact / "bm25_model.npz", weights=np.ones((3, 3)))
+        np.savez(
+            artifact / "bm25_model.npz",
+            K=np.asarray(100),
+            shape=np.asarray([3, 3]),
+            data=np.asarray([], dtype=np.float64),
+            indptr=np.zeros(4, dtype=np.int32),
+            indices=np.asarray([], dtype=np.int32),
+        )
         content_manifest = {
             "analyzer": "word",
             "ngram_min": 1,
@@ -118,6 +125,11 @@ def _write_artifact(
         "content_retriever": content_manifest,
     }
     (artifact / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    if checksums and content:
+        checksum_path = artifact / "checksums.json"
+        checksum_payload = json.loads(checksum_path.read_text(encoding="utf-8"))
+        checksum_payload["manifest.json"] = _sha256(artifact / "manifest.json")
+        checksum_path.write_text(json.dumps(checksum_payload), encoding="utf-8")
     return artifact
 
 
@@ -194,6 +206,16 @@ def test_publish_rejects_checksum_tamper_and_path_escape(tmp_path: Path) -> None
 
     assert manager.snapshot().model_version == "v1"
     assert (root / "latest.json").read_bytes() == pointer_before
+
+
+def test_publish_rejects_invalid_version_contract(tmp_path: Path) -> None:
+    root = tmp_path / "artifacts"
+    _write_artifact(root, "v1")
+    _write_pointer(root, "v1")
+    manager = _manager(root)
+
+    with pytest.raises(ArtifactValidationError, match="version is invalid"):
+        manager.publish("x" * 121)
 
 
 def test_atomic_replace_failure_leaves_pointer_and_runtime_unchanged(tmp_path: Path) -> None:
@@ -325,6 +347,47 @@ def test_publish_rejects_content_mapping_mismatch_with_valid_checksum(
     manager = _manager(root)
 
     with pytest.raises(ArtifactValidationError, match="Content item IDs"):
+        manager.publish("content")
+
+    assert manager.snapshot().model_version == "v1"
+
+
+def test_publish_rejects_v03_manifest_tamper(tmp_path: Path) -> None:
+    root = tmp_path / "artifacts"
+    _write_artifact(root, "v1")
+    candidate = _write_artifact(root, "content", content=True)
+    _write_pointer(root, "v1")
+    manifest_path = candidate / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["algorithm"] = "tampered"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manager = _manager(root)
+
+    with pytest.raises(ArtifactValidationError, match="SHA256 mismatch"):
+        manager.publish("content")
+
+    assert manager.snapshot().model_version == "v1"
+
+
+def test_publish_rejects_bm25_item_dimension_mismatch_with_valid_checksum(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "artifacts"
+    _write_artifact(root, "v1")
+    candidate = _write_artifact(root, "content", content=True)
+    _write_pointer(root, "v1")
+    model_path = candidate / "bm25_model.npz"
+    with np.load(model_path, allow_pickle=False) as payload:
+        values = {key: payload[key] for key in payload.files}
+    values["shape"] = np.asarray([2, 2])
+    np.savez(model_path, **values)
+    checksums_path = candidate / "checksums.json"
+    checksums = json.loads(checksums_path.read_text(encoding="utf-8"))
+    checksums["bm25_model.npz"] = _sha256(model_path)
+    checksums_path.write_text(json.dumps(checksums), encoding="utf-8")
+    manager = _manager(root)
+
+    with pytest.raises(ArtifactValidationError, match="BM25 model matrix shape"):
         manager.publish("content")
 
     assert manager.snapshot().model_version == "v1"

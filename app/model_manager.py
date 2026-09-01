@@ -123,7 +123,10 @@ class ModelManager:
     def publish(self, version: str) -> ModelRuntimeResponse:
         """Strictly validate and activate one direct child of the artifact root."""
         with self._mutation_lock:
-            reference = ArtifactReference(model_version=version, path=version)
+            try:
+                reference = ArtifactReference(model_version=version, path=version)
+            except ValueError as exc:
+                raise ArtifactValidationError(f"Model version is invalid: {exc}") from exc
             prepared = self._prepare(reference, strict=True)
             with self._state_lock:
                 previous = self._runtime_to_artifact(self._current)
@@ -307,11 +310,11 @@ class ModelManager:
             self._validate_checksums(
                 artifact_dir,
                 checksum_path=resolved_files["checksums"],
-                required_paths={
+                required_paths=({
                     relative_path
                     for key, relative_path in manifest.files.items()
                     if key != "checksums"
-                },
+                } | ({"manifest.json"} if manifest.content_retriever is not None else set())),
                 checksum_filename=checksum_key,
             )
             validation_status = "ok"
@@ -418,6 +421,22 @@ class ModelManager:
                 f"Item factor shape {item_factors.shape} does not match {expected_item_factors}."
             )
 
+        for key, label in (("cosine_model", "Cosine"), ("bm25_model", "BM25")):
+            model_path = resolved_files.get(key)
+            if model_path is None:
+                continue
+            try:
+                with np.load(model_path, allow_pickle=False) as item_model_payload:
+                    item_model_shape = tuple(int(value) for value in item_model_payload["shape"])
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise ArtifactValidationError(f"{label} model matrix is invalid: {exc}") from exc
+            expected_item_model_shape = (len(item_ids), len(item_ids))
+            if item_model_shape != expected_item_model_shape:
+                raise ArtifactValidationError(
+                    f"{label} model matrix shape {item_model_shape} does not match "
+                    f"{expected_item_model_shape}."
+                )
+
         if manifest.content_retriever is not None:
             if not {"content_items", "content_config"} <= set(resolved_files):
                 raise ArtifactValidationError(
@@ -514,6 +533,10 @@ class ModelManager:
             "error" if errors else prepared.validation_status
         )
         with self._state_lock:
+            try:
+                prepared.engine.runtime_fallback_reason = None  # type: ignore[attr-defined]
+            except (AttributeError, TypeError):
+                pass
             self._engine = prepared.engine
             self._status = status
             self._current = RuntimeModelReference(
@@ -532,6 +555,12 @@ class ModelManager:
     def _install_fallback(self, errors: list[str]) -> None:
         now = self._clock()
         with self._state_lock:
+            try:
+                self._fallback_engine.runtime_fallback_reason = (  # type: ignore[attr-defined]
+                    "ModelManager startup fallback: " + "; ".join(errors)
+                )
+            except (AttributeError, TypeError):
+                pass
             self._engine = self._fallback_engine
             self._status = "fallback"
             self._current = None

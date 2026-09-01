@@ -49,8 +49,12 @@ def train(
     config: Annotated[Path, typer.Option(help="Training TOML config.")] = Path(
         "configs/als.toml"
     ),
+    activate: Annotated[
+        bool,
+        typer.Option(help="Bootstrap latest.json immediately instead of publishing via admin."),
+    ] = False,
 ) -> None:
-    output = train_pipeline(processed_path, artifact_root, config)
+    output = train_pipeline(processed_path, artifact_root, config, activate=activate)
     typer.echo(json.dumps({"artifact_path": str(output)}, indent=2))
 
 

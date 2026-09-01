@@ -193,7 +193,7 @@ def test_dashboard_diagnostics_and_request_trace_use_real_events() -> None:
         assert len(trace["exposures"]) == 4
         assert len(trace["events"]) == 6  # 4 impressions plus click and like
         models = client.get("/api/admin/models").json()
-        assert models[0]["id"] == "deterministic-v1"
+        assert models == []  # Built-in deterministic fallback is not a publishable artifact.
 
 
 def test_dashboard_windows_trends_and_diagnostics_share_utc_bounds() -> None:

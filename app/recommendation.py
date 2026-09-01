@@ -133,12 +133,13 @@ class ALSRecommendationEngine:
 
         item_by_id = {item.id: item for item in items}
         unavailable = set(self.bundle.item_ids) - set(item_by_id)
+        policy = self.bundle.manifest.serving_policy
+        retrieval_limit = limit if policy == "bm25_content" else max(limit * 5, 100)
         ranked = self.bundle.recommend(
             user_id,
-            limit=max(limit * 5, 100),
+            limit=retrieval_limit,
             exclude_item_ids=unavailable,
         )
-        policy = self.bundle.manifest.serving_policy
         source, reason = self._POLICY_PRESENTATION.get(
             policy, (policy, "验证集选定的协同召回与实时行为重排")
         )

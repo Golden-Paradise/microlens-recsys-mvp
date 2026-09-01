@@ -1,9 +1,13 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from scipy import sparse
 
+from app.constants import FeedType
+from app.models import Item
+from app.recommendation import ALSRecommendationEngine
 from recsys.content import (
     CONFIG_FILE,
     ITEM_VECTORS_FILE,
@@ -11,6 +15,7 @@ from recsys.content import (
     hybrid_tail_quota,
     load_title_tfidf,
 )
+from recsys.model import _ordered_content_analyzers
 
 
 @pytest.fixture
@@ -127,3 +132,42 @@ def test_hybrid_tail_quota_rejects_invalid_contract() -> None:
         hybrid_tail_quota([1], [2], k=5, cold_quota=4)
     with pytest.raises(ValueError, match="exceed"):
         hybrid_tail_quota([1], [2], k=2, cold_quota=3)
+
+
+def test_content_analyzer_tie_break_is_independent_of_config_order() -> None:
+    assert _ordered_content_analyzers(("char_wb", "word")) == ("word", "char_wb")
+
+
+def test_online_hybrid_builds_quota_at_the_requested_display_limit() -> None:
+    class RecordingBundle:
+        def __init__(self) -> None:
+            self.manifest = SimpleNamespace(
+                model_version="content-test",
+                serving_policy="bm25_content",
+            )
+            self.item_ids = [1, 2, 3]
+            self.requested_limit = 0
+
+        def recommend(
+            self,
+            user_id: int,
+            *,
+            limit: int,
+            exclude_item_ids: set[int],
+        ) -> list[tuple[int, float]]:
+            self.requested_limit = limit
+            return [(1, 0.9), (2, 0.8), (3, 0.7)][:limit]
+
+    bundle = RecordingBundle()
+    engine = ALSRecommendationEngine(bundle)  # type: ignore[arg-type]
+    ranked = engine.recommend(
+        user_id=1,
+        feed_type=FeedType.PERSONALIZED,
+        items=[Item(id=item_id, title=f"Item {item_id}") for item_id in bundle.item_ids],
+        limit=3,
+        feedback_by_bucket={},
+        exposure_counts={},
+    )
+
+    assert bundle.requested_limit == 3
+    assert [candidate.item_id for candidate in ranked] == [1, 2, 3]

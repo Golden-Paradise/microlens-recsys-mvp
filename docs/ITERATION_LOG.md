@@ -72,6 +72,31 @@ its decision, commands, result, failure and fix before the corresponding commit 
   409 and leave the active model unchanged.
 - Formal official-data validation/test is still untouched at this Gate.
 
+### 2026-09-02 01:23 +08:00 - Cross-Gate review failures and invariant fixes
+
+- Rawls review found that online Hybrid requested Top-100 from the bundle and then truncated
+  to the display limit, which placed every cold quota item beyond the visible page. Hybrid
+  now constructs its quota at the actual display K before behavior reordering; a regression
+  test verifies the engine no longer requests 100 for this policy.
+- Rawls also found CSV blank titles becoming the token `nan`, and content tie-breaking
+  depending on TOML analyzer order. Titles are filled before string conversion, a real CSV
+  blank-title row must remain a zero vector, and analyzer preference is explicitly ordered as
+  Word then `char_wb` after the lower-quota rule.
+- Huygens review found offline training still overwriting the runtime pointer. Training now
+  creates a candidate by default; only explicit `--activate` bootstraps `latest.json`.
+  Runtime publish/rollback remains authoritative, and the database model table is refreshed
+  as a Dashboard projection from artifact manifests plus current runtime state.
+- Huygens also found that v0.3 checksums omitted `manifest.json`, non-ALS item matrices lacked
+  dimension checks, and startup deterministic fallback requests were counted as successful
+  model requests. v0.3 checksum coverage now includes the manifest, Cosine/BM25 shapes must
+  match the shared item mapping, and managed startup fallback records its reason in traces.
+- Feed build latency now stops after recommendation response items and trace children are
+  constructed and flushed, but before transaction commit and HTTP serialization. It is still
+  not described as end-to-end HTTP latency.
+- Review regression: 68 total tests passed; Ruff, Node syntax, and `git diff --check` passed.
+  Existing warnings remain limited to upstream Starlette TestClient deprecation and implicit
+  synthetic BLAS/COO conversion notices.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.

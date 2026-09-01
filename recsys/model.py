@@ -473,10 +473,17 @@ def _select_policy(
     return selected_policy, best_ndcg
 
 
+def _ordered_content_analyzers(analyzers: tuple[str, ...]) -> tuple[str, ...]:
+    """Freeze exact-tie preference independently from the TOML list order."""
+    return tuple(sorted(analyzers, key=lambda analyzer: (analyzer != "word", analyzer)))
+
+
 def train_pipeline(
     processed_path: Path,
     artifact_root: Path,
     config_path: Path,
+    *,
+    activate: bool = False,
 ) -> Path:
     """Select a retrieval policy on validation, retrain, then evaluate test once."""
     dataset = _resolve_dataset(processed_path)
@@ -486,7 +493,9 @@ def train_pipeline(
     test = sparse.load_npz(dataset.path / "test_matrix.npz").tocsr()
     validation_targets = target_by_user(validation)
     test_targets = target_by_user(test)
-    item_frame = pd.read_csv(dataset.path / "items.csv").set_index("item_id")
+    item_frame = pd.read_csv(dataset.path / "items.csv")
+    item_frame["title"] = item_frame["title"].fillna("")
+    item_frame = item_frame.set_index("item_id")
     titles = [str(item_frame.at[item_id, "title"]) for item_id in dataset.item_ids]
     validation_histories = _history_by_user(dataset, splits=("train",))
 
@@ -534,7 +543,8 @@ def train_pipeline(
     )
 
     validation_content_rankings: dict[str, dict[int, list[int]]] = {}
-    for analyzer in config.content_analyzers:
+    ordered_content_analyzers = _ordered_content_analyzers(config.content_analyzers)
+    for analyzer in ordered_content_analyzers:
         retriever = fit_title_tfidf(
             item_ids=dataset.item_ids,
             titles=titles,
@@ -551,7 +561,7 @@ def train_pipeline(
 
     content_policy_details: dict[str, tuple[str, int]] = {}
     for cold_quota in sorted(quota for quota in config.cold_quotas if quota <= config.top_k):
-        for analyzer in config.content_analyzers:
+        for analyzer in ordered_content_analyzers:
             policy_name = _content_policy_name(analyzer, cold_quota)
             content_policy_details[policy_name] = (analyzer, cold_quota)
             recommendations = _hybrid_content_recommendations(
@@ -760,22 +770,6 @@ def train_pipeline(
         ],
     ).to_csv(output / "badcases.csv", index=False)
 
-    checksum_targets = [
-        "als_model.npz",
-        "cosine_model.npz",
-        "bm25_model.npz",
-        "serving_user_items.npz",
-        "mappings.json",
-        "popularity.json",
-        "metrics.json",
-        "badcases.csv",
-        ITEM_VECTORS_FILE,
-        CONTENT_CONFIG_FILE,
-    ]
-    (output / "checksums.json").write_text(
-        json.dumps({name: _sha256(output / name) for name in checksum_targets}, indent=2),
-        encoding="utf-8",
-    )
     manifest_metrics = {
         f"test_{policy}_{slice_name}": MetricSet.model_validate(values)
         for policy, slices in test_report.items()
@@ -821,18 +815,36 @@ def train_pipeline(
     (output / "manifest.json").write_text(
         json.dumps(manifest.model_dump(mode="json"), indent=2), encoding="utf-8"
     )
-    pointer_path = artifact_root / "latest.json"
-    previous = None
-    if pointer_path.is_file():
-        previous = ArtifactPointer.model_validate_json(
-            pointer_path.read_text(encoding="utf-8")
-        ).current
-    pointer = ArtifactPointer(
-        current={"model_version": model_version, "path": model_version},
-        previous=previous,
-        updated_at=created_at,
+    checksum_targets = [
+        "manifest.json",
+        "als_model.npz",
+        "cosine_model.npz",
+        "bm25_model.npz",
+        "serving_user_items.npz",
+        "mappings.json",
+        "popularity.json",
+        "metrics.json",
+        "badcases.csv",
+        ITEM_VECTORS_FILE,
+        CONTENT_CONFIG_FILE,
+    ]
+    (output / "checksums.json").write_text(
+        json.dumps({name: _sha256(output / name) for name in checksum_targets}, indent=2),
+        encoding="utf-8",
     )
-    _atomic_write_json(pointer_path, pointer.model_dump(mode="json"))
+    if activate:
+        pointer_path = artifact_root / "latest.json"
+        previous = None
+        if pointer_path.is_file():
+            previous = ArtifactPointer.model_validate_json(
+                pointer_path.read_text(encoding="utf-8")
+            ).current
+        pointer = ArtifactPointer(
+            current={"model_version": model_version, "path": model_version},
+            previous=previous,
+            updated_at=created_at,
+        )
+        _atomic_write_json(pointer_path, pointer.model_dump(mode="json"))
     return output
 
 
