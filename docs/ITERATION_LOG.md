@@ -1,7 +1,29 @@
-# v0.2 Iteration Log
+# Iteration Log
 
 This document is chronological evidence, not a retrospective rewrite. Each Gate records
 its decision, commands, result, failure and fix before the corresponding commit is created.
+
+## v0.3 - Cold-start retrieval, reliable model publishing, and decision evidence
+
+### 2026-09-02 - G0 baseline and contract freeze
+
+- Branch: `feat/v0.3-coldstart-runtime`, based on clean `main@1039484` and matching
+  `origin/main`.
+- Local environment: Windows 10 10.0.19045 64-bit, Intel Core i5-11300H, Python 3.13.5,
+  uv 0.9.30. The service and CI contract remain Python 3.11 compatible.
+- Baseline commands: `uv run pytest -q` and `uv run ruff check app recsys tests`.
+- Baseline result: 30 tests passed and Ruff passed. Existing warnings are the upstream
+  Starlette TestClient deprecation and implicit's small synthetic COO-to-CSR conversions.
+- Frozen scope: title TF-IDF pure-cold retrieval, validation-only quota selection, strict
+  artifact validation, atomic single-worker activation/rollback, model evidence, recent
+  request traces, and passive latency/fallback warnings.
+- Compatibility: v0.1/v0.2 manifests default to no content retriever; the legacy flat
+  `latest.json` pointer upgrades in memory to the v2 current/previous contract.
+- Selection discipline: overall validation NDCG@20 remains authoritative. Pure-cold gains
+  are reported separately and cannot force a serving-policy change. Formal test remains
+  untouched until the analyzer and cold quota are frozen.
+- G0 contract fixture freezes the runtime, evaluation, request trace, and observability JSON
+  shapes before the offline, backend, and frontend implementations start.
 
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 

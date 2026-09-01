@@ -1,0 +1,69 @@
+{
+  "runtime": {
+    "status": "ready",
+    "current": {
+      "model_version": "hybrid-bm25-demo",
+      "path": "hybrid-bm25-demo",
+      "serving_policy": "bm25"
+    },
+    "previous": null,
+    "loaded_at": "2026-09-02T01:00:00Z",
+    "validation": {
+      "status": "ok",
+      "checked_at": "2026-09-02T01:00:00Z",
+      "errors": []
+    }
+  },
+  "evaluation": {
+    "model_version": "hybrid-bm25-demo",
+    "selected_policy": "bm25",
+    "selection_metric": "validation.overall.ndcg_at_20",
+    "policies": [
+      {
+        "policy": "bm25",
+        "selected": true,
+        "validation": {
+          "overall": {"recall_at_20": 0.08, "ndcg_at_20": 0.04, "coverage_at_20": 0.95},
+          "warm": {"recall_at_20": 0.081, "ndcg_at_20": 0.041, "coverage_at_20": 0.95},
+          "pure_cold": {"recall_at_20": 0.0, "ndcg_at_20": 0.0, "coverage_at_20": 0.0}
+        },
+        "test": null
+      }
+    ]
+  },
+  "request_traces": {
+    "window": "24h",
+    "window_start": "2026-09-01T01:00:00Z",
+    "window_end": "2026-09-02T01:00:00Z",
+    "items": [
+      {
+        "request_id": "00000000-0000-0000-0000-000000000001",
+        "username": "alice",
+        "feed_type": "personalized",
+        "model_version": "hybrid-bm25-demo",
+        "created_at": "2026-09-02T00:30:00Z",
+        "feed_build_latency_ms": 12.5,
+        "fallback_reason": null,
+        "exposures": 12,
+        "clicks": 1,
+        "likes": 1,
+        "not_interested": 0
+      }
+    ]
+  },
+  "observability": {
+    "window": "24h",
+    "window_start": "2026-09-01T01:00:00Z",
+    "window_end": "2026-09-02T01:00:00Z",
+    "requests": 20,
+    "fallback_count": 1,
+    "fallback_rate": 0.05,
+    "latency_ms": {"p50": 12.0, "p95": 510.0, "max": 620.0},
+    "by_feed": [],
+    "by_model": [],
+    "alerts": [
+      {"code": "fallback_rate", "severity": "warning", "message": "Fallback rate reached 5.00%."},
+      {"code": "p95_latency", "severity": "warning", "message": "P95 feed build latency reached 510.00 ms."}
+    ]
+  }
+}

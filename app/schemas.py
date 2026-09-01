@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -94,3 +95,103 @@ class DashboardTrends(BaseModel):
     window_end: datetime
     bucket_minutes: int
     points: list[DashboardTrendPoint]
+
+
+class RuntimeModelReference(BaseModel):
+    model_version: str
+    path: str
+    serving_policy: str | None = None
+
+
+class RuntimeValidation(BaseModel):
+    status: Literal["ok", "legacy_unverified", "error"]
+    checked_at: datetime
+    errors: list[str] = Field(default_factory=list)
+
+
+class ModelRuntimeResponse(BaseModel):
+    status: Literal["ready", "recovered", "fallback"]
+    current: RuntimeModelReference | None
+    previous: RuntimeModelReference | None
+    loaded_at: datetime
+    validation: RuntimeValidation
+
+
+class EvaluationMetricSet(BaseModel):
+    recall_at_20: float = Field(ge=0, le=1)
+    ndcg_at_20: float = Field(ge=0, le=1)
+    coverage_at_20: float = Field(ge=0, le=1)
+
+
+class EvaluationSlices(BaseModel):
+    overall: EvaluationMetricSet
+    warm: EvaluationMetricSet
+    pure_cold: EvaluationMetricSet
+
+
+class PolicyEvaluation(BaseModel):
+    policy: str
+    selected: bool
+    validation: EvaluationSlices
+    test: EvaluationSlices | None = None
+
+
+class ModelEvaluationResponse(BaseModel):
+    model_version: str
+    selected_policy: str
+    selection_metric: str
+    policies: list[PolicyEvaluation]
+
+
+class RequestTraceSummary(BaseModel):
+    request_id: str
+    username: str
+    feed_type: FeedType
+    model_version: str
+    created_at: datetime
+    feed_build_latency_ms: float = Field(ge=0)
+    fallback_reason: str | None = None
+    exposures: int = Field(ge=0)
+    clicks: int = Field(ge=0)
+    likes: int = Field(ge=0)
+    not_interested: int = Field(ge=0)
+
+
+class RequestTracesResponse(BaseModel):
+    window: DashboardWindow
+    window_start: datetime | None
+    window_end: datetime
+    items: list[RequestTraceSummary]
+
+
+class LatencySummary(BaseModel):
+    p50: float = Field(ge=0)
+    p95: float = Field(ge=0)
+    max: float = Field(ge=0)
+
+
+class ObservabilityGroup(BaseModel):
+    key: str
+    requests: int = Field(ge=0)
+    fallback_count: int = Field(ge=0)
+    fallback_rate: float = Field(ge=0, le=1)
+    latency_ms: LatencySummary
+
+
+class ObservabilityAlert(BaseModel):
+    code: Literal["fallback_rate", "p95_latency"]
+    severity: Literal["warning"] = "warning"
+    message: str
+
+
+class ObservabilityResponse(BaseModel):
+    window: DashboardWindow
+    window_start: datetime | None
+    window_end: datetime
+    requests: int = Field(ge=0)
+    fallback_count: int = Field(ge=0)
+    fallback_rate: float = Field(ge=0, le=1)
+    latency_ms: LatencySummary
+    by_feed: list[ObservabilityGroup]
+    by_model: list[ObservabilityGroup]
+    alerts: list[ObservabilityAlert]
