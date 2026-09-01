@@ -8,6 +8,52 @@ import numpy as np
 from recsys.contracts import MetricSet
 
 
+def reciprocal_rank_fusion(
+    rankings: Iterable[Iterable[int]],
+    *,
+    rrf_k: int = 60,
+    limit: int | None = None,
+) -> list[tuple[int, float]]:
+    """Fuse ranked item IDs with stable, score-scale-independent RRF."""
+    if rrf_k <= 0:
+        raise ValueError("rrf_k must be positive")
+    if limit is not None and limit < 0:
+        raise ValueError("limit cannot be negative")
+    scores: dict[int, float] = {}
+    for ranking in rankings:
+        seen_in_source: set[int] = set()
+        for rank, item_id in enumerate(ranking, start=1):
+            item_id = int(item_id)
+            if item_id in seen_in_source:
+                continue
+            seen_in_source.add(item_id)
+            scores[item_id] = scores.get(item_id, 0.0) + 1.0 / (rrf_k + rank)
+    fused = sorted(scores.items(), key=lambda pair: (-pair[1], pair[0]))
+    return fused if limit is None else fused[:limit]
+
+
+def rrf_recommendations(
+    recommendation_sets: Iterable[Mapping[int, Iterable[int]]],
+    *,
+    rrf_k: int,
+    limit: int,
+) -> dict[int, list[int]]:
+    """Fuse several user -> ranking mappings, retaining deterministic item order."""
+    sources = list(recommendation_sets)
+    user_ids = sorted({user_id for source in sources for user_id in source})
+    return {
+        user_id: [
+            item_id
+            for item_id, _ in reciprocal_rank_fusion(
+                (source.get(user_id, []) for source in sources),
+                rrf_k=rrf_k,
+                limit=limit,
+            )
+        ]
+        for user_id in user_ids
+    }
+
+
 def ranking_metrics(
     recommendations: Mapping[int, Iterable[int]],
     targets: Mapping[int, int],

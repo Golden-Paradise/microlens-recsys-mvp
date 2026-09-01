@@ -5,9 +5,12 @@ from pathlib import Path
 
 import pytest
 
+from app.constants import FeedType
+from app.models import Item
+from app.recommendation import ALSRecommendationEngine
 from recsys.contracts import MetricSet
 from recsys.data import OFFICIAL_FILES, prepare_dataset
-from recsys.evaluation import ranking_metrics
+from recsys.evaluation import ranking_metrics, reciprocal_rank_fusion
 from recsys.model import load_model_bundle, train_pipeline
 
 
@@ -76,12 +79,27 @@ def test_ranking_metrics_known_example() -> None:
     assert metrics.coverage_at_k == pytest.approx(0.6)
 
 
+def test_reciprocal_rank_fusion_is_equal_weighted_and_stable() -> None:
+    fused = reciprocal_rank_fusion(
+        [[2, 1, 2], [1, 2, 3]],
+        rrf_k=60,
+        limit=3,
+    )
+    assert [item_id for item_id, _ in fused] == [1, 2, 3]
+    assert fused[0][1] == pytest.approx(1 / 62 + 1 / 61)
+    assert fused[1][1] == pytest.approx(1 / 61 + 1 / 62)
+    assert fused[2][1] == pytest.approx(1 / 63)
+
+
 def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
     config = tmp_path / "als.toml"
     config.write_text(
         "[data]\nseed = 42\n\n"
         "[model]\nfactors = [2, 3]\niterations = 2\n"
-        "regularization = 0.05\nalpha = 10.0\ntop_k = 2\n",
+        "regularization = 0.05\nalpha = 10.0\ntop_k = 2\n\n"
+        "[item_item]\nneighbors = 4\ncandidate_pool_size = 4\n"
+        "bm25_k1 = 1.2\nbm25_b = 0.75\n\n"
+        "[fusion]\nrrf_k = 60\n",
         encoding="utf-8",
     )
     artifact_root = tmp_path / "artifacts"
@@ -94,20 +112,100 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
     assert bundle.user_ids == [1, 2, 3, 4]
     assert set(bundle.item_ids) == set(range(1, 7))
     assert bundle.model.user_factors.shape[0] == 4
+    assert bundle.cosine_model is not None
+    assert bundle.bm25_model is not None
+    assert bundle.manifest.serving_policy in {"als", "cosine", "bm25", "rrf"}
+    assert bundle.manifest.selection_metric == "validation.overall.ndcg_at_2"
+    metrics = json.loads((artifact / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["selection"]["selected_policy"] == bundle.manifest.serving_policy
+    assert {"als", "cosine", "bm25", "rrf"} <= set(metrics["validation"])
     known_recommendations = bundle.recommend(1, limit=2, exclude_item_ids={6})
     assert len(known_recommendations) <= 2
     assert all(
         item_id not in {1, 2, 3, 4, 6} for item_id, _ in known_recommendations
     ), known_recommendations
-    assert bundle.recommend(999, limit=2, exclude_item_ids={bundle.popularity[0]})
+    cold_start = bundle.recommend(
+        999, limit=2, exclude_item_ids={bundle.popularity[0]}
+    )
+    assert cold_start
+    assert all(item_id != bundle.popularity[0] for item_id, _ in cold_start)
+    assert bundle.recommend(1, limit=2, exclude_item_ids={6}) == load_model_bundle(
+        artifact
+    ).recommend(1, limit=2, exclude_item_ids={6})
+    engine = ALSRecommendationEngine(bundle)
+    online = engine.recommend(
+        user_id=1,
+        feed_type=FeedType.PERSONALIZED,
+        items=[Item(id=item_id, title=f"Item {item_id}") for item_id in bundle.item_ids],
+        limit=2,
+        feedback_by_bucket={},
+        exposure_counts={},
+    )
+    expected_source = {
+        "als": "als",
+        "cosine": "itemcf_cosine",
+        "bm25": "itemcf_bm25",
+        "rrf": "rrf:als+itemcf",
+    }[bundle.manifest.serving_policy]
+    assert all(candidate.source == expected_source for candidate in online)
     assert (artifact / "badcases.csv").is_file()
     assert (artifact / "metrics.json").is_file()
     checksums = json.loads((artifact / "checksums.json").read_text(encoding="utf-8"))
     assert set(checksums) == {
         "als_model.npz",
+        "cosine_model.npz",
+        "bm25_model.npz",
         "serving_user_items.npz",
         "mappings.json",
         "popularity.json",
         "metrics.json",
         "badcases.csv",
     }
+
+
+def test_each_serving_policy_hard_filters_seen_and_excluded(prepared, tmp_path: Path) -> None:
+    config = tmp_path / "als.toml"
+    config.write_text(
+        "[data]\nseed = 42\n\n"
+        "[model]\nfactors = [2]\niterations = 2\n"
+        "regularization = 0.05\nalpha = 10.0\ntop_k = 2\n\n"
+        "[item_item]\nneighbors = 4\ncandidate_pool_size = 4\n\n"
+        "[fusion]\nrrf_k = 60\n",
+        encoding="utf-8",
+    )
+    artifact = train_pipeline(prepared.path, tmp_path / "artifacts", config)
+    bundle = load_model_bundle(artifact)
+
+    for policy in ["als", "cosine", "bm25", "rrf"]:
+        bundle.manifest = bundle.manifest.model_copy(update={"serving_policy": policy})
+        ranked = bundle.recommend(1, limit=3, exclude_item_ids={6})
+        assert len(ranked) <= 3
+        assert all(item_id not in {1, 2, 3, 4, 6} for item_id, _ in ranked), (
+            policy,
+            ranked,
+        )
+
+
+def test_load_legacy_manifest_defaults_to_als(prepared, tmp_path: Path) -> None:
+    config = tmp_path / "als.toml"
+    config.write_text(
+        "[data]\nseed = 42\n\n"
+        "[model]\nfactors = [2]\niterations = 2\n"
+        "regularization = 0.05\nalpha = 10.0\ntop_k = 2\n",
+        encoding="utf-8",
+    )
+    artifact = train_pipeline(prepared.path, tmp_path / "artifacts", config)
+    manifest_path = artifact / "manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for field in ["serving_policy", "retrievers", "rrf_k", "selection_metric"]:
+        payload.pop(field)
+    payload["files"].pop("cosine_model")
+    payload["files"].pop("bm25_model")
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    legacy = load_model_bundle(artifact)
+    assert legacy.manifest.serving_policy == "als"
+    assert legacy.manifest.retrievers == ["als"]
+    assert legacy.cosine_model is None
+    assert legacy.bm25_model is None
+    assert legacy.recommend(1, limit=2)

@@ -35,4 +35,7 @@ class ModelManifest(BaseModel):
     top_k: int
     files: dict[str, str]
     metrics: dict[str, MetricSet]
-
+    serving_policy: str = "als"
+    retrievers: list[str] = Field(default_factory=lambda: ["als"])
+    rrf_k: int = Field(default=60, gt=0)
+    selection_metric: str = "validation.overall.ndcg_at_k"

@@ -10,7 +10,15 @@ regularization = 0.05
 alpha = 20.0
 top_k = 20
 
+[item_item]
+neighbors = 100
+candidate_pool_size = 100
+bm25_k1 = 1.2
+bm25_b = 0.75
+
+[fusion]
+rrf_k = 60
+
 [serving]
 page_size = 12
 candidate_pool_size = 200
-

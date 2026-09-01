@@ -93,7 +93,14 @@ class DeterministicRecommendationEngine:
 
 
 class ALSRecommendationEngine:
-    """Serve a versioned implicit-ALS bundle while keeping non-personalized feeds simple."""
+    """Serve a validation-selected artifact while keeping non-personalized feeds simple."""
+
+    _POLICY_PRESENTATION = {
+        "als": ("als", "ALS 协同过滤与实时行为重排"),
+        "cosine": ("itemcf_cosine", "Item-Item Cosine 共现召回与实时行为重排"),
+        "bm25": ("itemcf_bm25", "Item-Item BM25 共现召回与实时行为重排"),
+        "rrf": ("rrf:als+itemcf", "ALS 与 ItemCF 的 RRF 融合及实时行为重排"),
+    }
 
     def __init__(self, bundle: ModelBundle) -> None:
         self.bundle = bundle
@@ -127,12 +134,22 @@ class ALSRecommendationEngine:
             limit=max(limit * 5, 100),
             exclude_item_ids=unavailable,
         )
+        policy = self.bundle.manifest.serving_policy
+        source, reason = self._POLICY_PRESENTATION.get(
+            policy, (policy, "验证集选定的协同召回与实时行为重排")
+        )
+        raw_scores = [score for item_id, score in ranked if item_id in item_by_id]
+        score_span = max(raw_scores) - min(raw_scores) if raw_scores else 0.0
+        feedback_cap = score_span * 0.1
         candidates = [
             Candidate(
                 item_id=item_id,
-                score=score + feedback_by_bucket.get(item_id % 5, 0.0),
-                source="als",
-                reason="ALS 协同过滤与实时行为重排",
+                score=score
+                + feedback_cap
+                * min(max(feedback_by_bucket.get(item_id % 5, 0.0), 0.0), 2.0)
+                / 2.0,
+                source=source,
+                reason=reason,
             )
             for item_id, score in ranked
             if item_id in item_by_id
