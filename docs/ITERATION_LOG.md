@@ -131,3 +131,18 @@ Each subsequent entry must include:
 - G2 commit: `d97aa8a`. Remote Actions URL, conclusion, duration and G3 commit SHA are
   intentionally pending until the pushed workflow finishes; they must be added before G3
   is marked complete.
+
+### First remote run and platform-warning fix
+
+- G3 commit: `a11616d`; first run:
+  `https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33517217987`.
+- Result: all steps passed in 30 seconds, but GitHub annotated that checkout v4,
+  setup-python v5 and setup-uv v6 target deprecated Node.js 20 and were being forced onto
+  Node.js 24.
+- Root cause: the workflow copied formerly stable major versions rather than checking the
+  current maintained releases on the 2026 runner platform.
+- Verification source: GitHub release APIs reported checkout `v7.0.1`, setup-python
+  `v7.0.0`, and setup-uv `v10.0.1`, all from their official repositories.
+- Fix: pin the maintained compatible majors `actions/checkout@v7`,
+  `actions/setup-python@v7`, and `astral-sh/setup-uv@v10`. A second clean remote run must
+  pass without the Node.js 20 annotation before G3 is complete.
