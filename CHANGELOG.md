@@ -2,7 +2,7 @@
 
 All notable changes, compatibility notes, and verification evidence are recorded here.
 
-## [Unreleased] - v0.2.0
+## [Unreleased]
 
 ### Added
 
@@ -23,12 +23,19 @@ All notable changes, compatibility notes, and verification evidence are recorded
 ### Verification
 
 - Baseline: 23 tests passed and Ruff passed on commit `1b0d21b`.
-- G1: 30 tests passed, Ruff passed, offline smoke passed, and the full official-data
+- G1: 29 tests passed, Ruff passed, offline smoke passed, and the full official-data
   pipeline selected BM25 on validation NDCG@20.
-- G2: 30 tests passed; desktop and 390px browser checks rendered a nonblank 12-point 6h
+- G2: 29 tests passed; desktop and 390px browser checks rendered a nonblank 12-point 6h
   trend with no horizontal overflow or browser console errors.
 - G3 local: the CI contract runs on Ubuntu/Python 3.11 without official data, model
-  downloads, database state, or secrets. The remote result is recorded after push.
+  downloads, database state, or secrets.
+- G3 remote: GitHub Actions run `33517793682` passed its 29-test suite and every other step
+  in 33 seconds with no
+  annotations after upgrading to maintained Node 24 action releases.
+- Pre-release review added an explicit UTC-offset API contract test; the local suite is now
+  30 tests and will be rerun by CI after this change is pushed.
+- Release-candidate bundle prepared locally: 36,866,255 bytes; SHA256
+  `69479A2F04E90D133E9CE13579792C7781A909F5266E0447927FC331A8E9F7B6`.
 
 ## [0.1.0] - 2026-09-01
 

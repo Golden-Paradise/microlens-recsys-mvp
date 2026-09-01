@@ -56,11 +56,13 @@ Each subsequent entry must include:
 - Split: 259,708 train, 50,000 validation and 50,000 test interactions. Validation has
   49,156 warm targets; test has 49,424 warm targets.
 - Command: `uv run microlens train`; configuration `configs/als.toml`; seed 42; ALS
-  factors 32/64; ItemCF K=100; RRF K=60; evaluation K=20.
+  factors 32/64; ItemCF neighbor K=100; RRF rank constant `rrf_k=60`; evaluation K=20.
 - Timing evidence: the exact command start time was not captured, so no full wall-clock is
-  claimed. Artifact serialization started at 21:40:41.223913 and `manifest.json` plus
-  `latest.json` finished at 21:40:54.140861, a verifiable 12.917-second publish stage.
-  This is recorded as a process miss; future formal commands must use a timestamped wrapper.
+  claimed. The artifact directory was created at 13:40:41.2236423Z, manifest `created_at`
+  is 13:40:41.223913Z, and `manifest.json` plus `latest.json` were last written at
+  13:40:54.1408612Z. Directory creation through pointer write is a verifiable
+  12.9172189-second artifact publication stage, not the full training duration. This is
+  recorded as a process miss; future formal commands must use a timestamped wrapper.
 - Validation overall NDCG@20: ALS-64 `0.026506`, Cosine `0.030595`, BM25 `0.037136`,
   RRF `0.035926`. BM25 was frozen before the formal test evaluation.
 - Test overall Recall/NDCG/Coverage@20: ALS `0.061540/0.023592/0.212019`, Cosine
@@ -71,7 +73,7 @@ Each subsequent entry must include:
 - Artifact: `artifacts/hybrid-bm25-f64-764b7d14ce34-20260901T134041223913Z`;
   model version has the same directory name. Eight artifact-file SHA256 values are recorded
   in its `checksums.json`; the Git commit SHA is added by the next log entry after commit.
-- Verification: `uv run pytest -q` -> 30 passed; `uv run ruff check .` -> passed;
+- Verification: `uv run pytest -q` -> 29 passed; `uv run ruff check .` -> passed;
   `uv run microlens offline-smoke` -> passed; model reload, known-user filtering and
   unknown-user popularity fallback -> passed.
 - Failure and fix: `implicit.ItemItemRecommender` expands N internally when `filter_items`
@@ -96,7 +98,7 @@ Each subsequent entry must include:
   selected activity window.
 - Commands: `uv run pytest tests/test_online.py -q`, `uv run pytest tests/test_ui.py -q`,
   `uv run ruff check .`, and `node --check app/static/app.js`.
-- Result: online tests 9 passed, UI tests 11 passed, full suite 30 passed, Ruff and Node
+- Result: online tests 9 passed, UI tests 11 passed, full suite 29 passed, Ruff and Node
   syntax checks passed.
 - Browser evidence: administrator changed 24h to 6h; all three aggregate requests used
   `window=6h`; the API and SVG contained 12 points at 30 minutes per point. Browser console
@@ -106,7 +108,8 @@ Each subsequent entry must include:
   points and no overlap.
 - Screenshots: `reports/screenshots/v0.2/admin-dashboard-trends-6h-1280x720.png`,
   `admin-dashboard-chart-6h-1280x720.png`, `admin-dashboard-trends-6h-390x844.png`, and
-  `admin-dashboard-chart-6h-390x844.png`.
+  `admin-dashboard-chart-6h-390x844.png`. Names record target browser viewports; page-content
+  captures are 1265x712 and 375x812 pixels after browser chrome and scrollbars.
 - Failure and fix: browser QA showed 3 ordinary users but 4 active users because an admin
   had opened a Feed. Active-user aggregation now joins `users` and filters `role=user`;
   a regression assertion requires one active ordinary user in the API fixture. The real
@@ -126,7 +129,7 @@ Each subsequent entry must include:
   temporary data and artifact.
 - Safety: workflow permissions are read-only; concurrent superseded runs on the same ref
   are cancelled; timeout is 20 minutes; OpenBLAS is limited to one thread.
-- Local evidence before commit: full pytest 30 passed, Ruff passed, synthetic offline and
+- Local evidence before commit: full pytest 29 passed, Ruff passed, synthetic offline and
   online smoke passed, and `git diff --check` passed.
 - G2 commit: `d97aa8a`. Remote Actions URL, conclusion, duration and G3 commit SHA are
   intentionally pending until the pushed workflow finishes; they must be added before G3
@@ -157,3 +160,40 @@ Each subsequent entry must include:
   floating `v10` action tag. The release lookup was correct; the assumed major alias was not.
 - Fix: use the exact maintained release tag `astral-sh/setup-uv@v10.0.1`. The next remote
   run must execute every project step and finish without the Node.js 20 annotation.
+
+### Third remote run - G3 passed
+
+- Exact-tag commit: `5d9fc83`; final run:
+  `https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33517793682`.
+- Environment: GitHub-hosted Ubuntu 24.04, Python 3.11, read-only token permissions.
+- Result: every setup, frozen install, Ruff, 29-test suite and synthetic smoke step passed.
+  Job ran from 14:09:51Z to 14:10:24Z (33 seconds); annotations endpoint returned `[]`.
+- A first `git push` for `5d9fc83` failed with a transient TLS connect error. No history was
+  rewritten; retrying the identical push succeeded and triggered the recorded run.
+- G3 status: PASS.
+
+## 2026-09-01 22:13 +08:00 - G4 release artifact preparation
+
+- Selected artifact:
+  `hybrid-bm25-f64-764b7d14ce34-20260901T134041223913Z`.
+- Bundle: `tmp/microlens-recsys-bundle-v0.2.0-bm25.zip`, 36,866,255 bytes, containing
+  only `artifacts/latest.json` and the selected version directory. Archive listing confirms
+  there is no dataset, SQLite database, environment file, secret or video.
+- Bundle SHA256:
+  `69479A2F04E90D133E9CE13579792C7781A909F5266E0447927FC331A8E9F7B6`.
+- Release, final regression, main-branch CI and fresh-clone evidence remain pending and are
+  appended only after the corresponding commands finish.
+
+## 2026-09-01 22:39 +08:00 - Pre-release evidence and UTC contract review
+
+- Read-only review of run `33517793682` found that its raw log says `29 passed`, not the 30
+  previously copied into draft documentation. Historical G1-G3 counts above were corrected;
+  no test result was changed or rerun retroactively.
+- API review found Dashboard calculations were UTC-naive internally, so Pydantic serialized
+  timestamps without an offset even though the contract described UTC. SQLite comparisons
+  remain naive UTC, while the response boundary now adds explicit UTC awareness and serializes
+  `Z` for overview bounds, trend bounds and every bucket start.
+- Added `test_dashboard_time_contract_serializes_explicit_utc_offsets`; focused online tests
+  are now 10 passed and the full local suite is 30 passed. Ruff passed after line-length review.
+- This contract fix and documentation audit are included in the next feature-branch commit;
+  its remote CI run is recorded only after push.

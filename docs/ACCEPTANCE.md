@@ -21,6 +21,24 @@
 | 工程启动 | 干净环境按 README 启动，无真实密钥 | 全新 clone `uv sync --frozen` + `microlens smoke` | PASS |
 | 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | 04:08 Release 视频 + 抽帧 | PASS |
 
+## v0.2 可选加分项
+
+| 加分能力 | 可复核证据 | 状态与边界 |
+|---|---|---|
+| Item-Item CF | Cosine/BM25 K=100、保存加载、checksum、全量 valid/test | PASS；交互共现，不是文本 BM25 |
+| 多路融合实验 | ALS+BM25 等权 RRF、稳定去重、消融指标 | PASS；NDCG 未胜出，未作为线上默认 |
+| Validation 选型 | ALS/Cosine/BM25/RRF 只按 valid NDCG@20 冻结 | PASS；BM25 入选后才统一跑 test |
+| 线上模型消费 | Feed 返回 `itemcf_bm25`、分数、原因和 v0.2 模型版本 | PASS；反馈 bonus 有 10% 分数跨度上限 |
+| Dashboard 时间范围 | 1h/6h/24h/all 同口径概览、诊断、流占比、热门内容 | PASS；UTC 半开区间 |
+| 趋势折线图 | 5/30/60/1440 分钟补零桶、五指标 SVG、tooltip、空/错态 | PASS；无前端图表依赖 |
+| 响应式验收 | 1280x720 与 390x844 目标 viewport、12 个真实 SVG 点、无横向溢出 | PASS |
+| CI | Ubuntu/Python 3.11 frozen sync、Ruff、30 tests、smoke | PASS；33 秒，零 annotations |
+| 过程留痕 | Changelog、逐 Gate 日志、失败根因、修复和 run URL | PASS |
+| v0.2 Release | 36,866,255-byte bundle 与 SHA256，不含数据/视频 | TODO；本地 bundle 已校验，待上传 |
+
+v0.2 预定 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>。
+现有 v0.1 04:08 视频继续满足必选视频；v0.2 不重复录制，待 v0.3 候选功能冻结后统一更新。
+
 ## 不接受项防线
 
 - 推荐结果来自真实处理数据和训练产物，不使用前端固定 JSON。

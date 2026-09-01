@@ -48,4 +48,42 @@ AI 生成了大部分实现首稿、测试和文档草稿，约占代码编写�
 
 - 每个 Gate 独立 commit/push；`pytest`、Ruff、synthetic smoke、官方全量训练/回载、模型 checksum。
 - FastAPI TestClient 覆盖认证、权限、事件幂等、运营冲突和 fallback；真实浏览器覆盖主要旅程与响应式布局。
-- 私有 Release 同时提供 ALS bundle 与 04:08 视频，分别记录 SHA256；原数据、PDF、数据库和密钥不上传。
+- v0.1 私有 Release 同时提供 ALS bundle 与 04:08 视频，分别记录 SHA256；原数据、PDF、
+  数据库和密钥不上传。v0.2 在发布前只称为本地 Release candidate bundle。
+
+## v0.2 并行迭代记录
+
+| 角色 | 独占范围 | 输出 | 主 Agent review |
+|---|---|---|---|
+| Offline subagent | `recsys/model.py`、评估、配置、离线测试 | Cosine/BM25 ItemCF、RRF、artifact、正式指标 | 矩阵方向、过滤、test 边界、兼容、线上接入 |
+| Online subagent | Dashboard service/API/在线测试、CI | UTC 窗口、补零趋势、Ubuntu workflow | 角色口径、边界条件、远端 Actions |
+| Frontend subagent | Dashboard 模板、JS/CSS、UI 测试 | 分段控件、原生 SVG、tooltip/空/错态 | 1280/390 浏览器、像素与 console |
+| 主 Agent | 公共契约、文档、Git/Release | manifest/schema、集成、留痕、交付 | 全量 pytest/Ruff/smoke、fresh clone |
+
+关键 prompt 边界：三个 subagent 不得修改公共 schema、文档、Git 或彼此文件；离线任务不得查看
+test 后再调策略；前端只能消费真实 API；主 Agent 在每个 Gate 测试和日志完成后才提交。
+
+Gate/commit 映射：G1=`e209da5`；G2=`d97aa8a`；G3 workflow=`a11616d`，Node 24
+维护升级=`bc71748`，setup-uv 精确标签修复=`5d9fc83`。Frontend focused suite 为 11 passed、
+在线 focused suite 在 UTC 契约补测后为 10 passed，当前全仓为 30 passed，Node syntax passed。
+
+v0.2 人工/主 Agent 修复：
+
+1. `implicit.ItemItemRecommender` 使用 `filter_items` 时会内部扩大 N；离线 helper 和 Bundle
+   出口增加二次硬截断，并覆盖四种 serving policy。
+2. 原在线引擎把所有个性化结果写成 `source=als`；改为按 manifest 输出
+   `itemcf_bm25` 等真实来源，反馈 bonus 限制为模型分数跨度的 10%。
+3. 浏览器发现普通用户数 3、活跃用户 4；原因是管理员 Feed 请求进入 distinct user 聚合，
+   修复为 join users 并过滤 `role=user`。
+4. Dashboard 截止边界最初使用 `<= end`，与趋势桶不一致；统一改为 UTC `[start,end)`。
+5. 首次 CI 虽全绿，但旧 action major 触发 Node.js 20 弃用 annotation；查询官方 Release 后
+   升级。第二次又因 setup-uv 没有浮动 `v10` 标签失败，最终精确固定 `v10.0.1` 后全绿且
+   annotations 为空。
+6. 一次 `git push` 遇到瞬时 TLS connect error；没有改写提交，原命令重试后成功。
+7. 正式训练没有记录完整开始时间。文档只写可证实的 artifact 发布时间，并将时间戳 wrapper
+   固定为后续实验门禁，没有反推或伪造 wall-clock。
+
+v0.2 代码首稿仍主要由 AI/subagent 生成；指标口径、选型、修复、浏览器、远端 CI、本地
+Release candidate 和对外结论由主 Agent 基于真实命令与产物复核。RRF 的 Recall 更高但
+NDCG 更低，因此没有为了
+展示复杂架构而冒充线上最优方案。

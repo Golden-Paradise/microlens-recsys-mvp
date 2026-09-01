@@ -1,5 +1,9 @@
 # 3-5 分钟演示
 
+> 版本边界：本视频录制于 v0.1，覆盖 PDF 全部必选旅程。v0.2 新增的 ItemCF、时间趋势和
+> GitHub Actions 由正式指标、自动化测试、本地 Release candidate 和截图证明，暂不重复录制；
+> 待 v0.3 候选功能冻结后统一更新视频。
+
 ## 视频链接
 
 私有 GitHub Release 直链：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.1.0-als/microlens-recsys-mvp-demo.webm>

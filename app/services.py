@@ -51,6 +51,14 @@ def _naive_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC).replace(tzinfo=None)
 
 
+def _aware_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 class FeedService:
     def __init__(
         self,
@@ -528,8 +536,8 @@ class DashboardService:
                 )
         return DashboardOverview(
             window=window,
-            window_start=window_start,
-            window_end=window_end,
+            window_start=_aware_utc(window_start),
+            window_end=_aware_utc(window_end),
             users=users,
             active_users=active_users,
             requests=requests,
@@ -675,7 +683,7 @@ class DashboardService:
             exposures = bucket["exposures"]
             points.append(
                 DashboardTrendPoint(
-                    bucket_start=bucket_anchor + index * bucket_delta,
+                    bucket_start=_aware_utc(bucket_anchor + index * bucket_delta),
                     requests=bucket["requests"],
                     exposures=exposures,
                     clicks=bucket["clicks"],
@@ -685,8 +693,8 @@ class DashboardService:
             )
         return DashboardTrends(
             window=window,
-            window_start=window_start,
-            window_end=window_end,
+            window_start=_aware_utc(window_start),
+            window_end=_aware_utc(window_end),
             bucket_minutes=bucket_minutes,
             points=points,
         )

@@ -312,6 +312,24 @@ def test_dashboard_windows_trends_and_diagnostics_share_utc_bounds() -> None:
         assert client.get("/api/admin/dashboard/trends?window=invalid").status_code == 422
 
 
+def test_dashboard_time_contract_serializes_explicit_utc_offsets() -> None:
+    with make_client() as client:
+        login(client, "admin")
+        overview = client.get("/api/admin/dashboard?window=24h").json()
+        trends = client.get("/api/admin/dashboard/trends?window=24h").json()
+
+        timestamps = [
+            overview["window_start"],
+            overview["window_end"],
+            trends["window_start"],
+            trends["window_end"],
+            trends["points"][0]["bucket_start"],
+        ]
+        assert all(
+            datetime.fromisoformat(value).utcoffset() == timedelta(0) for value in timestamps
+        )
+
+
 def test_force_offline_restore_precedence_and_audit() -> None:
     with make_client() as client:
         login(client, "admin")
