@@ -31,6 +31,7 @@ def _write_artifact(
     version: str,
     *,
     checksums: bool = True,
+    manifest_checksum: bool = True,
     matrix_shape: tuple[int, int] = (2, 3),
     content: bool = False,
 ) -> Path:
@@ -125,7 +126,7 @@ def _write_artifact(
         "content_retriever": content_manifest,
     }
     (artifact / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-    if checksums and content:
+    if checksums and manifest_checksum:
         checksum_path = artifact / "checksums.json"
         checksum_payload = json.loads(checksum_path.read_text(encoding="utf-8"))
         checksum_payload["manifest.json"] = _sha256(artifact / "manifest.json")
@@ -314,6 +315,20 @@ def test_legacy_artifact_can_start_but_cannot_be_published(tmp_path: Path) -> No
     assert manager.runtime().validation.status == "legacy_unverified"
     with pytest.raises(ArtifactValidationError, match="cannot be published"):
         manager.publish("legacy")
+
+
+def test_legacy_checksums_without_manifest_can_start_but_cannot_be_published(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "artifacts"
+    _write_artifact(root, "legacy-v2", manifest_checksum=False)
+    _write_pointer(root, "legacy-v2")
+    manager = _manager(root)
+
+    assert manager.snapshot().model_version == "legacy-v2"
+    assert manager.runtime().validation.status == "legacy_unverified"
+    with pytest.raises(ArtifactValidationError, match="manifest checksum"):
+        manager.publish("legacy-v2")
 
 
 def test_publish_rejects_dimension_mismatch_even_with_valid_checksums(tmp_path: Path) -> None:

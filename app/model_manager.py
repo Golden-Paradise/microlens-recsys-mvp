@@ -307,17 +307,24 @@ class ModelManager:
                 )
             validation_status: Literal["ok", "legacy_unverified"] = "legacy_unverified"
         else:
-            self._validate_checksums(
+            checksum_paths = self._validate_checksums(
                 artifact_dir,
                 checksum_path=resolved_files["checksums"],
-                required_paths=({
+                required_paths={
                     relative_path
                     for key, relative_path in manifest.files.items()
                     if key != "checksums"
-                } | ({"manifest.json"} if manifest.content_retriever is not None else set())),
+                },
                 checksum_filename=checksum_key,
             )
-            validation_status = "ok"
+            if "manifest.json" not in checksum_paths:
+                if strict:
+                    raise ArtifactValidationError(
+                        "Legacy artifact has no manifest checksum and cannot be published."
+                    )
+                validation_status = "legacy_unverified"
+            else:
+                validation_status = "ok"
 
         self._validate_dimensions(manifest, resolved_files)
         return manifest, validation_status
@@ -329,7 +336,7 @@ class ModelManager:
         checksum_path: Path,
         required_paths: set[str],
         checksum_filename: str,
-    ) -> None:
+    ) -> set[str]:
         try:
             checksums = json.loads(checksum_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
@@ -360,6 +367,7 @@ class ModelManager:
             actual = _sha256(target)
             if actual.lower() != expected.lower():
                 raise ArtifactValidationError(f"SHA256 mismatch for {relative_path!r}.")
+        return set(checksums)
 
     def _validate_dimensions(
         self,

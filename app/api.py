@@ -1,8 +1,9 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import or_
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from app.auth import CurrentAdmin, CurrentUser, SessionDep
 from app.constants import DashboardWindow, FeedType, ItemStatus, OperationType
@@ -31,6 +32,7 @@ from app.security import verify_password
 from app.services import DashboardService, EventService, FeedService, OperationService
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 
 def _user_response(user: User) -> UserResponse:
@@ -42,6 +44,28 @@ def _model_manager(request: Request) -> ModelManager:
     if manager is None:
         raise HTTPException(status_code=409, detail="Model runtime is externally supplied")
     return manager
+
+
+def _sync_projection_after_switch(
+    request: Request,
+    session: Session,
+    runtime: ModelRuntimeResponse,
+) -> ModelRuntimeResponse:
+    try:
+        DashboardService.sync_model_projection(
+            session, request.app.state.settings.artifact_dir, runtime
+        )
+    except Exception as exc:
+        session.rollback()
+        logger.warning("Model switched but dashboard projection refresh failed: %s", exc)
+        return runtime.model_copy(
+            update={
+                "projection_warning": (
+                    "Model switched successfully, but the dashboard projection is stale."
+                )
+            }
+        )
+    return runtime
 
 
 @router.post("/auth/login", response_model=UserResponse)
@@ -231,10 +255,7 @@ def publish_model(
 ) -> ModelRuntimeResponse:
     try:
         runtime = _model_manager(request).publish(version)
-        DashboardService.sync_model_projection(
-            session, request.app.state.settings.artifact_dir, runtime
-        )
-        return runtime
+        return _sync_projection_after_switch(request, session, runtime)
     except ArtifactNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ArtifactValidationError as exc:
@@ -249,10 +270,7 @@ def rollback_model(
 ) -> ModelRuntimeResponse:
     try:
         runtime = _model_manager(request).rollback()
-        DashboardService.sync_model_projection(
-            session, request.app.state.settings.artifact_dir, runtime
-        )
-        return runtime
+        return _sync_projection_after_switch(request, session, runtime)
     except (ArtifactValidationError, ModelActivationError, OSError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

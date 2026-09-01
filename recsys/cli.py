@@ -86,6 +86,24 @@ def offline_smoke(
 ) -> None:
     if work_dir is None:
         work_dir = Path(tempfile.mkdtemp(prefix="microlens-offline-smoke-"))
+    data_version, _, artifact, _ = _build_smoke_artifact(work_dir)
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "data_version": data_version,
+                "artifact_path": str(artifact),
+            },
+            indent=2,
+        )
+    )
+
+
+def _build_smoke_artifact(
+    work_dir: Path,
+    *,
+    activate: bool = False,
+) -> tuple[str, Path, Path, Path]:
     raw_dir = work_dir / "raw"
     processed_root = work_dir / "processed"
     artifact_root = work_dir / "artifacts"
@@ -98,39 +116,51 @@ def offline_smoke(
         encoding="utf-8",
     )
     prepared = prepare_dataset(raw_dir, processed_root)
-    artifact = train_pipeline(prepared.path, artifact_root, config)
-    typer.echo(
-        json.dumps(
-            {
-                "status": "ok",
-                "data_version": prepared.data_version,
-                "artifact_path": str(artifact),
-            },
-            indent=2,
-        )
+    artifact = train_pipeline(
+        prepared.path,
+        artifact_root,
+        config,
+        activate=activate,
     )
+    return prepared.data_version, prepared.path, artifact, config
 
 
 @app.command()
 def smoke() -> None:
     """Run the synthetic offline pipeline and the complete online API loop."""
     work_dir = Path(tempfile.mkdtemp(prefix="microlens-smoke-"))
-    offline_smoke(work_dir=work_dir / "offline")
+    offline_root = work_dir / "offline"
+    data_version, processed_path, current_artifact, config = _build_smoke_artifact(
+        offline_root,
+        activate=True,
+    )
+    candidate_artifact = train_pipeline(
+        processed_path,
+        offline_root / "artifacts",
+        config,
+    )
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "data_version": data_version,
+                "artifact_path": str(current_artifact),
+                "candidate_path": str(candidate_artifact),
+            },
+            indent=2,
+        )
+    )
 
     os.environ["APP_DATABASE_URL"] = f"sqlite:///{(work_dir / 'app.db').as_posix()}"
     os.environ["APP_SEED_OFFICIAL_CATALOG"] = "false"
-    os.environ["APP_ARTIFACT_DIR"] = str(work_dir / "missing-artifacts")
+    os.environ["APP_ARTIFACT_DIR"] = str(offline_root / "artifacts")
     from fastapi.testclient import TestClient
 
     from app.config import Settings
     from app.main import create_app
-    from app.recommendation import DeterministicRecommendationEngine
     from app.seed import DEMO_PASSWORD
 
-    application = create_app(
-        settings=Settings(),
-        recommendation_engine=DeterministicRecommendationEngine(),
-    )
+    application = create_app(settings=Settings())
     with TestClient(application) as client:
         assert client.get("/api/health").status_code == 200
         assert client.post(
@@ -156,6 +186,32 @@ def smoke() -> None:
             "/api/auth/login",
             json={"username": "admin", "password": DEMO_PASSWORD},
         ).status_code == 200
+        runtime = client.get("/api/admin/models/runtime")
+        assert runtime.status_code == 200
+        assert runtime.json()["current"]["model_version"] == current_artifact.name
+        publish = client.post(
+            f"/api/admin/models/{candidate_artifact.name}/publish"
+        )
+        assert publish.status_code == 200
+        assert publish.json()["current"]["model_version"] == candidate_artifact.name
+        assert client.post("/api/auth/logout").status_code == 204
+
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "bob", "password": DEMO_PASSWORD},
+        ).status_code == 200
+        switched_feed = client.get("/api/feeds/personalized?page_size=4")
+        assert switched_feed.status_code == 200
+        assert switched_feed.json()["model_version"] == candidate_artifact.name
+        assert client.post("/api/auth/logout").status_code == 204
+
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": DEMO_PASSWORD},
+        ).status_code == 200
+        rollback = client.post("/api/admin/models/rollback")
+        assert rollback.status_code == 200
+        assert rollback.json()["current"]["model_version"] == current_artifact.name
         force = client.post(
             "/api/admin/operations/force",
             json={"item_id": 40, "reason": "smoke force", "scope": "all"},

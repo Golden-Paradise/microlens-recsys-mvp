@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Request
@@ -9,12 +10,27 @@ APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
 TEMPLATE_DIR = APP_DIR / "templates"
 
+
+def _static_version() -> str:
+    digest = hashlib.sha256()
+    for asset_name in ("app.css", "app.js"):
+        digest.update((STATIC_DIR / asset_name).read_bytes())
+    return digest.hexdigest()[:12]
+
+
+STATIC_VERSION = _static_version()
+
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 router = APIRouter(include_in_schema=False)
 
 
 def page_context(request: Request, *, title: str, page: str) -> dict[str, object]:
-    return {"request": request, "title": title, "page": page}
+    return {
+        "request": request,
+        "title": title,
+        "page": page,
+        "static_version": STATIC_VERSION,
+    }
 
 
 @router.get("/", response_class=RedirectResponse)

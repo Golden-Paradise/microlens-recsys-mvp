@@ -670,7 +670,34 @@ function renderModelRegistry(payload, dashboardState) {
     setAsyncRegionState(target, "empty", "当前没有可发布的模型版本。");
   } else {
     target.dataset.state = "ready";
-    renderRecord(target, records);
+    const wrap = element("div", "table-wrap");
+    const table = element("table", "data-table model-registry-table");
+    const head = element("thead");
+    const headRow = element("tr");
+    ["状态", "版本", "数据版本", "训练时间", "发布时间"].forEach((label) => {
+      headRow.append(element("th", "", label));
+    });
+    head.append(headRow);
+    const body = element("tbody");
+    records.forEach((record) => {
+      const row = element("tr");
+      row.append(element("td", "", record.status || "--"));
+      const versionCell = element("td", "model-version-cell");
+      const version = String(record.id || record.model_version || "--");
+      const versionCode = element("code", "", version);
+      versionCode.title = version;
+      versionCell.append(versionCode);
+      row.append(
+        versionCell,
+        element("td", "", record.data_version || "--"),
+        element("td", "", formatAdminTime(record.trained_at)),
+        element("td", "", formatAdminTime(record.published_at)),
+      );
+      body.append(row);
+    });
+    table.append(head, body);
+    wrap.append(table);
+    target.replaceChildren(wrap);
   }
 
   const selector = select("#publish-model-version");

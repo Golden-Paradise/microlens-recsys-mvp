@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.admin import READ_ONLY_VIEWS, configure_read_only_admin
 from app.database import Database
-from app.web import STATIC_DIR, TEMPLATE_DIR, register_web
+from app.web import STATIC_DIR, STATIC_VERSION, TEMPLATE_DIR, register_web
 
 V03_CONTRACT_PATH = Path(__file__).parent / "fixtures" / "v03_admin_contracts.json"
 
@@ -49,6 +49,9 @@ def test_root_redirects_to_feed_and_assets_are_local(web_client: TestClient) -> 
     base_template = (TEMPLATE_DIR / "base.html").read_text(encoding="utf-8")
     assert "https://" not in base_template
     assert "http://" not in base_template
+    feed_html = web_client.get("/feed").text
+    assert f"/static/app.css?v={STATIC_VERSION}" in feed_html
+    assert f"/static/app.js?v={STATIC_VERSION}" in feed_html
 
 
 def test_feed_template_contains_trace_feedback_and_empty_states() -> None:
@@ -191,6 +194,7 @@ def test_v03_admin_reliability_contract_is_wired_to_isolated_regions() -> None:
 
 def test_v03_dashboard_is_two_column_and_stacks_for_390px() -> None:
     styles = (STATIC_DIR / "app.css").read_text(encoding="utf-8")
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
 
     assert ".reliability-grid" in styles
     assert ".request-detail-grid" in styles
@@ -200,6 +204,15 @@ def test_v03_dashboard_is_two_column_and_stacks_for_390px() -> None:
     assert "@media (max-width: 480px)" in styles
     assert "grid-template-columns: 1fr" in styles
     assert "min-width: 0" in styles
+    assert ".model-registry .data-table" in styles
+    assert "min-width: 720px" in styles
+    assert "model-registry-table" in script
+    assert "model-version-cell" in script
+    assert 'record.data_version || "--"' in script
+    registry_renderer = script.split("function renderModelRegistry", 1)[1].split(
+        "function renderObservabilityGroups", 1
+    )[0]
+    assert "artifact_path" not in registry_renderer
     assert "box-shadow: var(--shadow)" not in styles.split(".ops-panel {", 1)[1].split("}", 1)[0]
 
 

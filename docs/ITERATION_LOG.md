@@ -120,6 +120,109 @@ its decision, commands, result, failure and fix before the corresponding commit 
   diff checks passed. Browser verification at 1280x720 and 390x844 is still pending and is not
   replaced by source-string assertions.
 
+### 2026-09-02 01:26:26 +08:00 - G4 official evaluation started
+
+- Data: official prepared version `764b7d14ce34`; split remains per-user leave-last-two with
+  train-only validation fitting and train+validation formal-test fitting.
+- Command: `$env:OPENBLAS_NUM_THREADS='1'; uv run microlens train --processed-path
+  data/processed --artifact-root artifacts --config configs/als.toml`.
+- Environment: Windows 10 10.0.19045, Intel Core i5-11300H, Python 3.13.5, uv 0.9.30,
+  scikit-learn 1.9.0, implicit 0.7.3, NumPy 2.5.2, and SciPy 1.18.1.
+- Frozen search space: Word `(1,2)` and `char_wb (3,5)` with cold quotas `1/2/3/5`, plus
+  the quota-0 BM25 control. Highest overall validation NDCG@20 is authoritative; exact
+  content ties prefer lower quota and then Word.
+- The existing v0.2 pointer remains unchanged while training creates a candidate artifact.
+  This command performs the one permitted official v0.3 formal Test evaluation only after
+  validation selects and freezes the candidate.
+
+### 2026-09-02 01:36:49 +08:00 - G4 official evaluation completed
+
+- Wall time: 10 minutes 23 seconds. Candidate artifact:
+  `hybrid-bm25-f64-764b7d14ce34-20260901T173618808761Z` (66,730,787 bytes).
+- Validation decision: BM25 remained selected at overall NDCG@20 `0.03713558`. The best
+  content candidate, Word with quota 1, reached `0.03697165`; it improved pure-cold
+  Recall/NDCG to `0.05450237/0.01240857` but did not win the authoritative overall metric.
+- The strongest pure-cold Recall was `0.09241706` from `char_wb` quota 5, with pure-cold
+  NDCG `0.02215794`; its overall NDCG fell to `0.03511726`. This is retained as a useful
+  negative trade-off experiment, not promoted as the serving policy.
+- Target slices: validation `50,000` overall / `49,156` warm / `844` pure-cold; formal Test
+  `50,000` overall / `49,424` warm / `576` pure-cold.
+- Formal Test was run once after selection and contains only the frozen BM25 policy because
+  the selected policy and baseline are identical: overall Recall/NDCG/Coverage@20
+  `0.07822/0.03338273/0.98199792`; pure-cold Recall/NDCG remain `0/0`.
+- Artifact policy is therefore `bm25`, not `bm25_content`. All 11 declared SHA256 entries,
+  including `manifest.json`, matched. `checksums.json` SHA256 is
+  `c2a7e56f285f7eae486af9dfba10a7315c846ad6e9dd39226ba00cecf821f28a`.
+- The pre-existing v0.2 pointer still referenced
+  `hybrid-bm25-f64-764b7d14ce34-20260901T134041223913Z`; no implicit activation occurred.
+
+### 2026-09-02 - G4 local runtime and responsive browser acceptance
+
+- Used a dedicated single-worker service at `127.0.0.1:8001` and isolated
+  `var/app-v03.db`, leaving the existing port-8000 demo database untouched.
+- Runtime sequence passed: v0.2 current -> v0.3 publish -> v0.2 rollback -> v0.3 rollback
+  again. Each state reported checksum validation `ok`; the final v2 pointer holds v0.3 as
+  current and v0.2 as previous.
+- Generated 24 real Feed traces across alice/bob/carol and all three Feed types. Observed
+  fallback rate was `0%`; local P50/P95 Feed build latency was `388.87/599.77 ms`, so the
+  passive P95 warning fired after the 20-sample threshold. This is a local staged observation,
+  not a general production SLA.
+- Evidence-script failure/fix: PowerShell parsed `$feedType?page_size` as a variable named
+  `feedType?`, producing `/feeds/=6` and no request rows. Bracing `${feedType}` and enabling
+  stop-on-error produced the intended 24 valid traces.
+- Browser acceptance used real 1280x720 and 390x844 viewports. Desktop had a true request
+  list/detail grid, zero visible-overflow elements, and zero console warnings/errors. Mobile
+  stacked to one column with no document overflow; the selected request retained keyboard
+  button semantics and rendered its exposure/event timeline.
+- Visual fix: the first mobile screenshot showed model registry columns squeezing IDs into
+  one-character lines. The table now has a stable 720 px minimum width inside its own
+  horizontal scroll container; this preserves readable columns without page-level overflow.
+- Browser screenshots are stored under `reports/screenshots/v0.3/`. A long full-page capture
+  showed browser stitching duplication, so viewport screenshots, DOM section counts, and
+  overflow measurements are the authoritative visual evidence.
+
+### 2026-09-02 05:38 +08:00 - G4 final reliability review and evidence freeze
+
+- Backend review found that v0.2 bundles with a `checksums.json` but no checksum for
+  `manifest.json` were still considered strictly publishable. Startup compatibility is now
+  preserved as `legacy_unverified`, while every management-API publish or rollback requires
+  the manifest itself to be SHA256-covered. A new regression fixture covers this exact v0.2
+  compatibility boundary.
+- The local v0.2 rollback candidate was hardened by adding its existing manifest SHA256 to
+  its local checksum manifest; no model file, metric, manifest field, v0.2 Release asset, or
+  Git history changed. The strict API sequence then passed again:
+  `v0.3 -> hardened v0.2 -> rollback v0.3`, ending with validation `ok` and v0.3 current.
+- Publish/rollback already make the pointer and in-memory manager authoritative before the
+  SQLite Dashboard projection runs. Projection failure now rolls back only the failed DB
+  session and returns the successful runtime with `projection_warning`, instead of returning
+  a misleading HTTP 500 after the model has switched.
+- CI smoke now trains two strict synthetic artifacts, bootstraps the first, publishes the
+  second through the authenticated admin API, verifies a new Feed reports the second model
+  version, rolls back to the first, and then continues the existing event/force/offline loop.
+  It still uses only a temporary database, data directory and artifact root.
+- Static assets now share a 12-character SHA256 content fingerprint computed from the final
+  CSS and JavaScript, rather than a manually maintained version string. The final browser
+  loaded `?v=2890e372edbd`; this fixed the stale generic model-table renderer observed during
+  QA and is protected by a rendered-HTML test.
+- Final browser measurements: desktop viewport `1280x720`, document width `1265`; mobile
+  viewport `390x844`, document width `375`; both have no page-level horizontal overflow.
+  The final selected request contains 6 impressions plus click, like and not-interested
+  events. Browser console warning/error count remained zero.
+- Authoritative final screenshots are the eight files under `reports/screenshots/v0.3/`:
+  model registry and model decision at desktop/mobile sizes, desktop P95 warning, desktop
+  list/detail trace, mobile detail, and mobile feedback timeline. Five stale, stitched, or
+  pre-fix screenshots were removed before staging so no image exposes a local artifact path
+  or contradicts the final renderer.
+- Focused verification after these fixes: 33 model-manager/admin/UI tests passed, 5 contract
+  tests passed, Ruff passed, Node syntax passed, `git diff --check` passed, and the upgraded
+  offline+online runtime smoke passed. The full-suite result and G4 commit SHA are recorded
+  immediately after the final Gate command completes.
+- Final G4 command result: `OPENBLAS_NUM_THREADS=1 uv run pytest` passed all 70 tests in
+  26.64 seconds; Ruff, Node syntax, `git diff --check`, and the upgraded synthetic
+  offline+online publish/rollback smoke all passed. The 13 warnings are limited to the
+  documented upstream Starlette TestClient deprecation and synthetic implicit COO-to-CSR
+  conversions. G4 commit SHA is filled by the Git history itself after this entry is staged.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.

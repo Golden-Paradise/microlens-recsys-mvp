@@ -652,6 +652,22 @@ textarea { min-height: 84px; resize: vertical; }
   max-height: 164px;
 }
 
+.model-registry .data-table {
+  min-width: 720px;
+}
+
+.model-registry-table .model-version-cell {
+  width: 280px;
+}
+
+.model-registry-table .model-version-cell code {
+  display: block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .decision-header {
   display: flex;
   flex-wrap: wrap;

@@ -115,6 +115,7 @@ class ModelRuntimeResponse(BaseModel):
     previous: RuntimeModelReference | None
     loaded_at: datetime
     validation: RuntimeValidation
+    projection_warning: str | None = None
 
 
 class EvaluationMetricSet(BaseModel):

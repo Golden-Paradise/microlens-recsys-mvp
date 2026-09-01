@@ -14,6 +14,7 @@ from app.model_manager import (
 from app.recommendation import DeterministicRecommendationEngine
 from app.schemas import ModelRuntimeResponse
 from app.seed import DEMO_PASSWORD
+from app.services import DashboardService
 
 
 def _client(tmp_path: Path) -> TestClient:
@@ -201,6 +202,24 @@ def test_model_activation_errors_map_to_stable_http_statuses(tmp_path: Path) -> 
             publish_error=ModelActivationError("No previous model version")
         )
         assert client.post("/api/admin/models/rollback").status_code == 409
+
+
+def test_projection_failure_reports_warning_after_successful_switch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def fail_projection(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(DashboardService, "sync_model_projection", fail_projection)
+    with _client(tmp_path) as client:
+        _login(client, "admin")
+        client.app.state.model_manager = FakeManager()
+
+        response = client.post("/api/admin/models/content-v1/publish")
+
+        assert response.status_code == 200
+        assert response.json()["current"]["model_version"] == "content-v1"
+        assert "dashboard projection is stale" in response.json()["projection_warning"]
 
 
 def _write_projection_manifest(artifact_root: Path, version: str) -> None:
