@@ -46,6 +46,32 @@ its decision, commands, result, failure and fix before the corresponding commit 
   integrated tree later reached 61 tests with Ruff and Node syntax checks passing. G1 is
   committed before formal validation, so no exploratory metric is presented as final.
 
+### 2026-09-02 01:05 +08:00 - G2 atomic model publishing and observability
+
+- Replaced direct mutable engine access with one `ModelManager.snapshot()` at the start of
+  each Feed request. Model loading and warm-up occur outside the short state lock, while a
+  mutation lock serializes publish and rollback operations for the supported one-worker
+  Uvicorn deployment.
+- Strict publishing accepts only a version below the configured artifact root. It verifies
+  the manifest/version match, checksum coverage and SHA256 values, ALS and CSR dimensions,
+  content matrix rows, and the shared item mapping before changing serving state.
+- Pointer writes use a same-directory temporary file, `flush`, `fsync`, and `os.replace`.
+  Loading, warm-up, validation, or pointer-write failure leaves the last-known-good engine
+  and pointer unchanged. Startup can recover the previous version or expose deterministic
+  fallback when neither version is usable.
+- Added admin runtime, publish, rollback, frozen-evaluation, request-trace, and observability
+  APIs. Feed build latency is kept distinct from HTTP end-to-end latency. Nearest-rank
+  P50/P95 and fallback warnings require at least 20 samples before thresholds apply.
+- Compatibility: legacy flat pointers and bundles remain loadable at startup, but a bundle
+  without complete checksums cannot be republished through the management API.
+- Integration test: a newly trained synthetic content bundle must pass both the regular
+  loader and `ModelManager` strict validation, then publish by its manifest version.
+- Review failure/fix: the first API adapter inferred 404 from the word `missing`, which also
+  misclassified a present-but-incomplete artifact. A dedicated not-found exception now maps
+  only an absent version directory to 404; manifest/checksum/file validation failures map to
+  409 and leave the active model unchanged.
+- Formal official-data validation/test is still untouched at this Gate.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.

@@ -5,14 +5,14 @@ from app.admin import configure_read_only_admin
 from app.api import router as api_router
 from app.config import Settings
 from app.database import Database
+from app.model_manager import ModelManager
 from app.recommendation import (
     ALSRecommendationEngine,
-    DeterministicRecommendationEngine,
     RecommendationEngine,
 )
 from app.seed import seed_demo_data
 from app.web import register_web
-from recsys.model import ModelBundle, load_model_bundle
+from recsys.model import ModelBundle
 
 
 def create_app(
@@ -21,12 +21,12 @@ def create_app(
 ) -> FastAPI:
     settings = settings or Settings()
     model_bundle: ModelBundle | None = None
+    model_manager: ModelManager | None = None
     if recommendation_engine is None:
-        try:
-            model_bundle = load_model_bundle(settings.artifact_dir)
-            recommendation_engine = ALSRecommendationEngine(model_bundle)
-        except (FileNotFoundError, OSError, ValueError, KeyError):
-            recommendation_engine = DeterministicRecommendationEngine()
+        model_manager = ModelManager(settings.artifact_dir)
+        recommendation_engine = model_manager.snapshot()
+    if isinstance(recommendation_engine, ALSRecommendationEngine):
+        model_bundle = recommendation_engine.bundle
 
     database = Database(settings.database_url)
     database.create_all()
@@ -53,6 +53,7 @@ def create_app(
     application.state.settings = settings
     application.state.db = database
     application.state.recommendation_engine = recommendation_engine
+    application.state.model_manager = model_manager
     application.include_router(api_router)
 
     @application.get("/api/health")

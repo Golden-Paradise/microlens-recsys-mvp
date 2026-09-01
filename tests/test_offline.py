@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.constants import FeedType
+from app.model_manager import ModelManager
 from app.models import Item
 from app.recommendation import ALSRecommendationEngine
 from recsys.contracts import MetricSet
@@ -170,6 +171,12 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
         "title_tfidf_items.npz",
         "content_config.json",
     }
+    manager = ModelManager(artifact_root)
+    assert manager.runtime().status == "ready"
+    assert manager.runtime().validation.status == "ok"
+    assert manager.publish(bundle.manifest.model_version).current.model_version == (
+        bundle.manifest.model_version
+    )
 
 
 def test_each_serving_policy_hard_filters_seen_and_excluded(prepared, tmp_path: Path) -> None:

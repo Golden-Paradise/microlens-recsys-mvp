@@ -2,6 +2,7 @@ import json
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -28,6 +29,7 @@ from app.models import (
     User,
     utc_now,
 )
+from app.observability import RequestObservation, aggregate_observability
 from app.recommendation import (
     Candidate,
     DeterministicRecommendationEngine,
@@ -37,11 +39,19 @@ from app.schemas import (
     DashboardOverview,
     DashboardTrendPoint,
     DashboardTrends,
+    EvaluationMetricSet,
+    EvaluationSlices,
     EventCreate,
     EventResponse,
     FeedItemResponse,
     FeedResponse,
+    ModelEvaluationResponse,
+    ModelRuntimeResponse,
+    ObservabilityResponse,
     OperationCreate,
+    PolicyEvaluation,
+    RequestTracesResponse,
+    RequestTraceSummary,
 )
 
 
@@ -57,6 +67,23 @@ def _aware_utc(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _evaluation_metrics(payload: dict[str, object] | None) -> EvaluationMetricSet:
+    values = payload or {}
+    return EvaluationMetricSet(
+        recall_at_20=float(values.get("recall_at_k", 0.0)),
+        ndcg_at_20=float(values.get("ndcg_at_k", 0.0)),
+        coverage_at_20=float(values.get("coverage_at_k", 0.0)),
+    )
+
+
+def _evaluation_slices(payload: dict[str, object]) -> EvaluationSlices:
+    return EvaluationSlices(
+        overall=_evaluation_metrics(payload.get("overall")),
+        warm=_evaluation_metrics(payload.get("warm_item") or payload.get("warm")),
+        pure_cold=_evaluation_metrics(payload.get("pure_cold")),
+    )
 
 
 class FeedService:
@@ -697,6 +724,157 @@ class DashboardService:
             window_end=_aware_utc(window_end),
             bucket_minutes=bucket_minutes,
             points=points,
+        )
+
+    @staticmethod
+    def request_traces(
+        session: Session,
+        window: DashboardWindow = DashboardWindow.HOUR_24,
+        *,
+        feed_type: FeedType | None = None,
+        limit: int = 10,
+    ) -> RequestTracesResponse:
+        window_start, window_end = DashboardService._window_bounds(window)
+        conditions = DashboardService._time_conditions(
+            RecommendationRequest.created_at, window_start, window_end
+        )
+        if feed_type is not None:
+            conditions.append(RecommendationRequest.feed_type == feed_type)
+        rows = list(
+            session.exec(
+                select(RecommendationRequest, User.username)
+                .join(User, User.id == RecommendationRequest.user_id)
+                .where(*conditions)
+                .order_by(RecommendationRequest.created_at.desc())
+                .limit(limit)
+            ).all()
+        )
+        request_ids = [request.id for request, _ in rows]
+        exposure_counts: dict[str, int] = {}
+        event_counts: dict[tuple[str, EventType], int] = {}
+        if request_ids:
+            exposure_counts = {
+                request_id: count
+                for request_id, count in session.exec(
+                    select(Exposure.request_id, func.count(Exposure.id))
+                    .where(Exposure.request_id.in_(request_ids))
+                    .group_by(Exposure.request_id)
+                ).all()
+            }
+            event_counts = {
+                (request_id, event_type): count
+                for request_id, event_type, count in session.exec(
+                    select(Event.request_id, Event.event_type, func.count(Event.id))
+                    .where(
+                        Event.request_id.in_(request_ids),
+                        Event.event_type.in_(
+                            [EventType.CLICK, EventType.LIKE, EventType.NOT_INTERESTED]
+                        ),
+                    )
+                    .group_by(Event.request_id, Event.event_type)
+                ).all()
+            }
+        return RequestTracesResponse(
+            window=window,
+            window_start=_aware_utc(window_start),
+            window_end=_aware_utc(window_end),
+            items=[
+                RequestTraceSummary(
+                    request_id=request.id,
+                    username=username,
+                    feed_type=request.feed_type,
+                    model_version=request.model_version,
+                    created_at=_aware_utc(request.created_at),
+                    feed_build_latency_ms=request.latency_ms,
+                    fallback_reason=request.fallback_reason,
+                    exposures=exposure_counts.get(request.id, 0),
+                    clicks=event_counts.get((request.id, EventType.CLICK), 0),
+                    likes=event_counts.get((request.id, EventType.LIKE), 0),
+                    not_interested=event_counts.get(
+                        (request.id, EventType.NOT_INTERESTED), 0
+                    ),
+                )
+                for request, username in rows
+            ],
+        )
+
+    @staticmethod
+    def observability(
+        session: Session,
+        window: DashboardWindow = DashboardWindow.HOUR_24,
+    ) -> ObservabilityResponse:
+        window_start, window_end = DashboardService._window_bounds(window)
+        rows = list(
+            session.exec(
+                select(RecommendationRequest).where(
+                    *DashboardService._time_conditions(
+                        RecommendationRequest.created_at, window_start, window_end
+                    )
+                )
+            ).all()
+        )
+        return aggregate_observability(
+            (
+                RequestObservation(
+                    feed_type=request.feed_type,
+                    model_version=request.model_version,
+                    feed_build_latency_ms=request.latency_ms,
+                    fallback_reason=request.fallback_reason,
+                )
+                for request in rows
+            ),
+            window=window,
+            window_start=_aware_utc(window_start),
+            window_end=_aware_utc(window_end),
+        )
+
+    @staticmethod
+    def model_evaluation(
+        artifact_root: Path,
+        runtime: ModelRuntimeResponse,
+    ) -> ModelEvaluationResponse:
+        if runtime.current is None:
+            raise HTTPException(status_code=404, detail="No active model artifact")
+        root = artifact_root.resolve()
+        artifact = (root / runtime.current.path).resolve()
+        if artifact.parent != root:
+            raise HTTPException(status_code=404, detail="Active model artifact is invalid")
+        try:
+            metrics = json.loads((artifact / "metrics.json").read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=404, detail="Evaluation artifact is unavailable"
+            ) from exc
+        selection = metrics.get("selection", {})
+        selected_candidate = str(
+            selection.get("selected_candidate") or selection.get("selected_policy") or ""
+        )
+        validation = metrics.get("validation", {})
+        test = metrics.get("test", {})
+        policies = []
+        for policy, validation_payload in validation.items():
+            if policy in {"random", "popularity"} or policy.startswith("als_"):
+                continue
+            test_payload = test.get(policy)
+            policies.append(
+                PolicyEvaluation(
+                    policy=policy,
+                    selected=policy == selected_candidate,
+                    validation=_evaluation_slices(validation_payload),
+                    test=(
+                        _evaluation_slices(test_payload)
+                        if isinstance(test_payload, dict)
+                        else None
+                    ),
+                )
+            )
+        if not policies:
+            raise HTTPException(status_code=404, detail="Evaluation policies are unavailable")
+        return ModelEvaluationResponse(
+            model_version=runtime.current.model_version,
+            selected_policy=selected_candidate,
+            selection_metric=str(selection.get("metric") or "validation.overall.ndcg_at_20"),
+            policies=policies,
         )
 
     @staticmethod

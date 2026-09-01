@@ -6,6 +6,12 @@ from sqlmodel import select
 
 from app.auth import CurrentAdmin, CurrentUser, SessionDep
 from app.constants import DashboardWindow, FeedType, ItemStatus, OperationType
+from app.model_manager import (
+    ArtifactNotFoundError,
+    ArtifactValidationError,
+    ModelActivationError,
+    ModelManager,
+)
 from app.models import Event, Item, Operation, User
 from app.schemas import (
     DashboardOverview,
@@ -14,7 +20,11 @@ from app.schemas import (
     EventResponse,
     FeedResponse,
     LoginRequest,
+    ModelEvaluationResponse,
+    ModelRuntimeResponse,
+    ObservabilityResponse,
     OperationCreate,
+    RequestTracesResponse,
     UserResponse,
 )
 from app.security import verify_password
@@ -25,6 +35,13 @@ router = APIRouter(prefix="/api")
 
 def _user_response(user: User) -> UserResponse:
     return UserResponse(id=user.id, username=user.username, role=user.role.value)
+
+
+def _model_manager(request: Request) -> ModelManager:
+    manager = request.app.state.model_manager
+    if manager is None:
+        raise HTTPException(status_code=409, detail="Model runtime is externally supplied")
+    return manager
 
 
 @router.post("/auth/login", response_model=UserResponse)
@@ -57,7 +74,9 @@ def feed(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=50)] = 12,
 ) -> FeedResponse:
-    service = FeedService(request.app.state.recommendation_engine)
+    manager = request.app.state.model_manager
+    engine = manager.snapshot() if manager is not None else request.app.state.recommendation_engine
+    service = FeedService(engine)
     return service.create_feed(
         session, user=user, feed_type=feed_type, page=page, page_size=page_size
     )
@@ -101,7 +120,11 @@ def dashboard(
 ) -> DashboardOverview:
     return DashboardService.overview(
         session,
-        request.app.state.recommendation_engine.model_version,
+        (
+            request.app.state.model_manager.snapshot().model_version
+            if request.app.state.model_manager is not None
+            else request.app.state.recommendation_engine.model_version
+        ),
         window,
     )
 
@@ -124,6 +147,32 @@ def feed_diagnostics(
     return DashboardService.feed_diagnostics(session, window)
 
 
+@router.get("/admin/request-traces", response_model=RequestTracesResponse)
+@router.get("/admin/requests", response_model=RequestTracesResponse, include_in_schema=False)
+def request_traces(
+    admin: CurrentAdmin,
+    session: SessionDep,
+    window: DashboardWindow = DashboardWindow.HOUR_24,
+    feed_type: FeedType | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> RequestTracesResponse:
+    return DashboardService.request_traces(
+        session,
+        window,
+        feed_type=feed_type,
+        limit=limit,
+    )
+
+
+@router.get("/admin/observability", response_model=ObservabilityResponse)
+def observability(
+    admin: CurrentAdmin,
+    session: SessionDep,
+    window: DashboardWindow = DashboardWindow.HOUR_24,
+) -> ObservabilityResponse:
+    return DashboardService.observability(session, window)
+
+
 @router.get("/admin/users/{user_id}/debug")
 def user_debug(user_id: int, admin: CurrentAdmin, session: SessionDep) -> dict[str, object]:
     return DashboardService.user_debug(session, user_id)
@@ -139,6 +188,53 @@ def request_trace(
 @router.get("/admin/models")
 def model_versions(admin: CurrentAdmin, session: SessionDep) -> list[object]:
     return DashboardService.models(session)
+
+
+@router.get("/admin/models/runtime", response_model=ModelRuntimeResponse)
+def model_runtime(request: Request, admin: CurrentAdmin) -> ModelRuntimeResponse:
+    return _model_manager(request).runtime()
+
+
+@router.get(
+    "/admin/models/current/evaluation",
+    response_model=ModelEvaluationResponse,
+)
+def current_model_evaluation(
+    request: Request,
+    admin: CurrentAdmin,
+) -> ModelEvaluationResponse:
+    manager = _model_manager(request)
+    return DashboardService.model_evaluation(
+        request.app.state.settings.artifact_dir,
+        manager.runtime(),
+    )
+
+
+@router.post(
+    "/admin/models/{version}/publish",
+    response_model=ModelRuntimeResponse,
+)
+def publish_model(
+    version: str,
+    request: Request,
+    admin: CurrentAdmin,
+) -> ModelRuntimeResponse:
+    try:
+        return _model_manager(request).publish(version)
+    except ArtifactNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ArtifactValidationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ModelActivationError, OSError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/admin/models/rollback", response_model=ModelRuntimeResponse)
+def rollback_model(request: Request, admin: CurrentAdmin) -> ModelRuntimeResponse:
+    try:
+        return _model_manager(request).rollback()
+    except (ArtifactValidationError, ModelActivationError, OSError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/admin/contents")
