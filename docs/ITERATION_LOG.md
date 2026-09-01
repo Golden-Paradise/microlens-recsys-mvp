@@ -146,3 +146,14 @@ Each subsequent entry must include:
 - Fix: pin the maintained compatible majors `actions/checkout@v7`,
   `actions/setup-python@v7`, and `astral-sh/setup-uv@v10`. A second clean remote run must
   pass without the Node.js 20 annotation before G3 is complete.
+
+### Second remote run and exact-tag fix
+
+- Maintenance-update commit: `bc71748`; second run:
+  `https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33517566938`.
+- Result: failed during action resolution before dependency installation or project tests.
+  GitHub could not resolve `astral-sh/setup-uv@v10`.
+- Root cause: setup-uv publishes release tag `v10.0.1` but does not expose a resolvable
+  floating `v10` action tag. The release lookup was correct; the assumed major alias was not.
+- Fix: use the exact maintained release tag `astral-sh/setup-uv@v10.0.1`. The next remote
+  run must execute every project step and finish without the Node.js 20 annotation.
