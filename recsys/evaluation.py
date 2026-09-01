@@ -149,11 +149,17 @@ def sliced_metrics(
     k: int,
 ) -> dict[str, MetricSet]:
     warm_targets = {user: item for user, item in targets.items() if item in warm_items}
+    pure_cold_targets = {
+        user: item for user, item in targets.items() if item not in warm_items
+    }
     return {
         "overall": ranking_metrics(
             recommendations, targets, catalog_size=catalog_size, k=k
         ),
         "warm_item": ranking_metrics(
             recommendations, warm_targets, catalog_size=catalog_size, k=k
+        ),
+        "pure_cold": ranking_metrics(
+            recommendations, pure_cold_targets, catalog_size=catalog_size, k=k
         ),
     }

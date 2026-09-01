@@ -114,7 +114,13 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
     assert bundle.model.user_factors.shape[0] == 4
     assert bundle.cosine_model is not None
     assert bundle.bm25_model is not None
-    assert bundle.manifest.serving_policy in {"als", "cosine", "bm25", "rrf"}
+    assert bundle.manifest.serving_policy in {
+        "als",
+        "cosine",
+        "bm25",
+        "rrf",
+        "bm25_content",
+    }
     assert bundle.manifest.selection_metric == "validation.overall.ndcg_at_2"
     metrics = json.loads((artifact / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["selection"]["selected_policy"] == bundle.manifest.serving_policy
@@ -146,6 +152,7 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
         "cosine": "itemcf_cosine",
         "bm25": "itemcf_bm25",
         "rrf": "rrf:als+itemcf",
+        "bm25_content": "hybrid:bm25+title_tfidf",
     }[bundle.manifest.serving_policy]
     assert all(candidate.source == expected_source for candidate in online)
     assert (artifact / "badcases.csv").is_file()
@@ -160,6 +167,8 @@ def test_train_save_and_load_bundle(prepared, tmp_path: Path) -> None:
         "popularity.json",
         "metrics.json",
         "badcases.csv",
+        "title_tfidf_items.npz",
+        "content_config.json",
     }
 
 
@@ -176,7 +185,7 @@ def test_each_serving_policy_hard_filters_seen_and_excluded(prepared, tmp_path: 
     artifact = train_pipeline(prepared.path, tmp_path / "artifacts", config)
     bundle = load_model_bundle(artifact)
 
-    for policy in ["als", "cosine", "bm25", "rrf"]:
+    for policy in ["als", "cosine", "bm25", "rrf", "bm25_content"]:
         bundle.manifest = bundle.manifest.model_copy(update={"serving_policy": policy})
         ranked = bundle.recommend(1, limit=3, exclude_item_ids={6})
         assert len(ranked) <= 3
@@ -197,10 +206,18 @@ def test_load_legacy_manifest_defaults_to_als(prepared, tmp_path: Path) -> None:
     artifact = train_pipeline(prepared.path, tmp_path / "artifacts", config)
     manifest_path = artifact / "manifest.json"
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    for field in ["serving_policy", "retrievers", "rrf_k", "selection_metric"]:
+    for field in [
+        "serving_policy",
+        "retrievers",
+        "rrf_k",
+        "selection_metric",
+        "content_retriever",
+    ]:
         payload.pop(field)
     payload["files"].pop("cosine_model")
     payload["files"].pop("bm25_model")
+    payload["files"].pop("content_items")
+    payload["files"].pop("content_config")
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
 
     legacy = load_model_bundle(artifact)

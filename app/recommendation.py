@@ -100,6 +100,10 @@ class ALSRecommendationEngine:
         "cosine": ("itemcf_cosine", "Item-Item Cosine 共现召回与实时行为重排"),
         "bm25": ("itemcf_bm25", "Item-Item BM25 共现召回与实时行为重排"),
         "rrf": ("rrf:als+itemcf", "ALS 与 ItemCF 的 RRF 融合及实时行为重排"),
+        "bm25_content": (
+            "hybrid:bm25+title_tfidf",
+            "BM25 协同头部与标题 TF-IDF 纯冷内容配额",
+        ),
     }
 
     def __init__(self, bundle: ModelBundle) -> None:

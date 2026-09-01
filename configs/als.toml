@@ -19,6 +19,11 @@ bm25_b = 0.75
 [fusion]
 rrf_k = 60
 
+[content]
+analyzers = ["word", "char_wb"]
+cold_quotas = [1, 2, 3, 5]
+candidate_pool_size = 100
+
 [serving]
 page_size = 12
 candidate_pool_size = 200

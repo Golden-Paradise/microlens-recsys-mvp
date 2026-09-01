@@ -25,6 +25,27 @@ its decision, commands, result, failure and fix before the corresponding commit 
 - G0 contract fixture freezes the runtime, evaluation, request trace, and observability JSON
   shapes before the offline, backend, and frontend implementations start.
 
+### 2026-09-02 01:01 +08:00 - G1 title retrieval and validation integration
+
+- Added Word `(1,2)` and `char_wb (3,5)` TF-IDF candidates with fixed `min_df=2`,
+  `max_features=50000`, sublinear TF, L2 normalization and float32 sparse storage.
+- The content profile uses the latest 10 interactions in `sequence_position` order while the
+  full fit-split history remains authoritative for seen filtering. Only zero-interaction
+  items in that fit split can enter the content ranking.
+- Validation compares BM25 against tail quotas `0/1/2/3/5`; overall validation NDCG@20
+  remains the only selection metric. Exact ties prefer the lower quota and then Word.
+- Added explicit `pure_cold` beside the compatible `warm_item` metric. Formal test is not
+  run at this Gate; the pipeline will evaluate only frozen BM25 and the selected candidate.
+- Artifact changes: `title_tfidf_items.npz`, `content_config.json`, their SHA256 values,
+  content selection metadata, and an atomically replaced v2 current/previous pointer. No
+  vectorizer pickle is written.
+- Review fix: static item ID indexes and cold candidate slices were changed to cached
+  properties before official evaluation; rebuilding a 19,220-item map for every one of
+  50,000 users would have hidden a severe full-data performance defect.
+- Verification: 20 focused content/evaluation/offline/contract tests passed; the complete
+  integrated tree later reached 61 tests with Ruff and Node syntax checks passing. G1 is
+  committed before formal validation, so no exploratory metric is presented as final.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.
