@@ -18,7 +18,7 @@
 | 模型运行 | 数据版本、训练时间、指标、发布状态；失败不覆盖 | 模型版本测试 | PASS |
 | 内容运营 | 搜索、强推范围与有效期、下线、恢复、审计 | 运营端到端测试 | PASS |
 | 下线权威 | 所有 Feed、强推和直接内容 API 最终过滤 | 冲突优先级测试 | PASS |
-| 工程启动 | 干净环境按 README 启动，无真实密钥 | 全新 clone smoke | TODO |
+| 工程启动 | 干净环境按 README 启动，无真实密钥 | 全新 clone `uv sync --frozen` + `microlens smoke` | PASS |
 | 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | 04:08 Release 视频 + 抽帧 | PASS |
 
 ## 不接受项防线

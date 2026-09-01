@@ -35,4 +35,4 @@
 
 视频：04:08、1280x720，抽查 10 个时间点，SHA256 为 `254E4EAFE0BAA2F464D20BAAB0E5926C3642006E09785C87538D495452B28CA4`。
 
-全新 clone smoke 尚待最终 G4 commit 推送后执行，完成前不会在验收矩阵标为 PASS。
+全新 clone：从私有 GitHub 的 `4d070a6` 克隆到新的临时目录，`uv sync --frozen` 从锁文件安装 61 个包；`uv run microlens smoke` 返回离线 `status=ok` 和在线 `scope=offline+online`；结束时 `git status` 只有 `main...origin/main`，无未提交文件。未复制当前工作目录的 `.venv`、数据、artifact 或 SQLite。
