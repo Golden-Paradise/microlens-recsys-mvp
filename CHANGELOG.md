@@ -2,7 +2,7 @@
 
 All notable changes, compatibility notes, and verification evidence are recorded here.
 
-## [0.3.0] - 2026-09-02
+## [0.3.0] - 2026-09-03
 
 ### Added
 
@@ -43,11 +43,19 @@ All notable changes, compatibility notes, and verification evidence are recorded
 - Official artifact: 66,730,787 bytes, 11 SHA256 entries verified; `checksums.json` SHA256
   `c2a7e56f285f7eae486af9dfba10a7315c846ad6e9dd39226ba00cecf821f28a`.
 - The 77,575,939-byte full runtime remains local because it contains official user-history
-  derivatives. The public Release will contain a reduced BM25 model-evidence package without
-  user IDs, interaction matrices, per-user Badcases or title vectors.
-- The first 4:51 v0.3 recording was rejected during final review because it did not cover all
-  five mandatory video journeys. Final package and replacement-video hashes are recorded only
-  after the G5 Release gate succeeds.
+  derivatives. The locally verified 10,535,942-byte public candidate contains only BM25
+  weights, item IDs and a sanitized manifest; SHA256 is
+  `c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65`.
+- Removed the historical v0.1/v0.2 runtime assets before making the repository public because
+  they contained user-level interaction-derived structures. The v0.1 video remains clearly
+  labeled as historical evidence.
+- Public main CI run `33657938390` passed on Ubuntu/Python 3.11. An anonymous fresh clone of
+  implementation commit `0c33477` passed frozen sync, 70 tests and both smoke paths without
+  copying a database, official data or a model artifact.
+- Two otherwise complete recordings were rejected at `05:09.40` and `04:29.72` for missing
+  the duration Gate. The accepted 14,543,758-byte replacement is VP8/1280x720 at `04:33.96`,
+  covers all five mandatory journeys and has SHA256
+  `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`.
 - Pin the project default to Python 3.11 and make pytest/CLI Gate commands use module startup,
   avoiding Windows editable-install path decoding failures in checkouts with non-ASCII names.
 

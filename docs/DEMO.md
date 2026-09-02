@@ -2,20 +2,22 @@
 
 ## 交付状态
 
-v0.3 最终视频在远端 CI、公开仓库和 fresh-clone smoke 全部完成后录制，再作为最终 Release
-资产发布。目前不得把待办项写成已完成。
+v0.3 最终视频已在远端 CI、公开仓库和 fresh-clone smoke 完成后录制，并通过媒体与关键帧
+检查。当前只剩 tag/Release 上传及匿名回下载，因此下表继续区分本地成片和远端发布状态。
 
 | 证据 | 当前值 |
 |---|---|
-| 最终视频 | `PENDING` |
-| 视频时长、分辨率、编码和大小 | `PENDING` |
-| 视频 SHA256 | `PENDING` |
+| 最终视频 | 本地核验通过：`microlens-recsys-v0.3.0-demo.webm`；Release 上传待完成 |
+| 视频时长、分辨率、编码和大小 | `04:33.96`、1280x720、VP8/yuv420p、25fps、14,543,758 bytes |
+| 视频 SHA256 | `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed` |
 | v0.3 Release URL | `PENDING` |
-| GitHub Actions run URL | `PENDING` |
-| GitHub Actions conclusion | `PENDING` |
-| fresh-clone commit 与 smoke 结果 | `PENDING` |
+| GitHub Actions run URL | <https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33657938390> |
+| GitHub Actions conclusion | `success`；Ubuntu/Python 3.11，33 秒，lint/70 tests/offline+online smoke |
+| fresh-clone commit 与 smoke 结果 | `0c33477`；frozen sync、70 tests、offline smoke、publish/rollback smoke 全部通过；最终 tag 待复验 |
 
-本地已有一段 `04:51` 的 v0.3 候选视频，但它没有完整覆盖 Bob 个性化差异、内容运营强推/下线/恢复、仓库启动与训练命令，因此已拒绝，不能作为最终 Gate PASS 或发布资产。
+早期 `04:51` 候选视频因缺少 Bob、完整启动链路和强推/下线/恢复而被拒绝。公开后又有两段
+完整候选分别因 `05:09.40` 超过 PDF 上限、`04:29.72` 低于内部 4:30 下限而被拒绝；只有上表
+`04:33.96` 成片进入最终发布目录。
 
 v0.1 的 `04:08` 视频仅是历史必选项证据，不代表 v0.3：
 <https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.1.0-als/microlens-recsys-mvp-demo.webm>。
@@ -27,14 +29,14 @@ v0.1 的 `04:08` 视频仅是历史必选项证据，不代表 v0.3：
 
 | 时间 | 画面与操作 | 需要说清的证据边界 |
 |---|---|---|
-| 00:00-00:35 | README 的 clone、`uv sync --frozen`、`python -m recsys.cli smoke`、download/prepare/train/serve 命令 | smoke 使用合成数据，不冒充官方全量训练；正式数据不随仓库或 Release 二次分发 |
-| 00:35-01:25 | Alice 登录，依次切换个性化/热门/探索，记录点击与喜欢，再看画像 | 三路 Feed、request_id、模型版本、source/score/reason；反馈更新在线画像，不等于重训 ALS/ItemCF |
-| 01:25-01:45 | Bob 登录并展示个性化 Feed | 与 Alice 的 Top 列表不同；这是用户差异证据，不宣称线上指标提升 |
-| 01:45-02:15 | Admin Dashboard 顶部、趋势和行为后的指标 | 请求/曝光/点击/点赞来自 SQLite；点击、点赞、负反馈都以曝光为共同分母 |
-| 02:15-03:10 | 对内容 #40 强推，验证 Feed 首位；下线后验证 Feed/API 不再返回；恢复并打开运营审计 | 下线权威高于强推；操作均真实落库；最终恢复内容在线 |
-| 03:10-03:50 | 模型决策表与 pure-cold 消融 | BM25 validation overall NDCG@20 胜出；TF-IDF 改善 pure-cold validation，但 overall 未胜，所以没有强行上线，未入选策略不跑正式 test |
-| 03:50-04:25 | 展示 checksum、current/previous，实际 publish 后再 rollback | 路径、manifest、SHA256 和矩阵维度先校验；pointer 原子替换；单请求 snapshot；仅支持单 Uvicorn worker |
-| 04:25-04:50 | 请求链路、P50/P95、fallback 告警、正式 test、公开仓库与 CI | 延迟是 Feed 构建延迟，不是完整 HTTP 延迟；告警是 Dashboard 被动告警；离线结果不表述为线上因果收益 |
+| 00:00-00:38 | 复现命令、公开 README、官方数据边界 | smoke 使用合成数据，不冒充官方全量训练；正式数据不随仓库或 Release 二次分发 |
+| 00:38-01:16 | Alice 三路 Feed、点击/喜欢和画像 | request_id、模型版本、source/score/reason；反馈更新在线画像，不等于重训 ALS/ItemCF |
+| 01:16-01:35 | Bob 个性化 Feed | Top 列表与 Alice 不同；这是用户差异证据，不宣称线上指标提升 |
+| 01:35-02:24 | Dashboard、#40 强推首位、下线/API 过滤、恢复和审计 | 指标来自 SQLite；下线权威高于强推；操作真实落库并最终恢复 |
+| 02:24-03:12 | 模型决策表、pure-cold 消融和固定 commit 评估报告 | BM25 赢 validation overall；TF-IDF pure-cold 有信号但 overall 未胜，未入选策略不跑正式 test |
+| 03:12-03:43 | current/previous、实际 publish 和 rollback | 先校验路径/manifest/SHA256/矩阵；原子 pointer、请求 snapshot、单 worker 边界 |
+| 03:43-04:14 | P50/P95、fallback、request_id 链路和真实 CI | Feed 构建延迟不等于 HTTP SLA；告警是被动状态；CI 对应视频中的固定 commit |
+| 04:14-04:33 | 冻结后的 formal Test 与交付边界 | 离线结果不表述为线上因果收益，576 个 pure-cold Test target 仍未命中 |
 
 ## 录制门禁
 
@@ -67,4 +69,6 @@ node tools/capture_final_evidence_v03.mjs
 
 ## 发布后回填
 
-只有真实发生后才把本页顶部的 `PENDING` 替换为：最终视频直链、时长、分辨率、编码、字节数、SHA256、Release URL、Actions run URL/conclusion，以及 fresh-clone commit/smoke 结果。发布前还要抽查开场、双用户、行为闭环、内容下线、模型回滚和结尾指标帧，确认非黑屏、文字可读、无密码、Token、`.env`、本机绝对路径或原始数据泄露。
+Release 真正发布后才替换剩余的 URL `PENDING`。发布前检查已完成：连续黑帧检测无命中，抽查
+22 个关键帧覆盖开场、双用户、行为闭环、内容下线、模型回滚、请求链路、CI 和结尾指标；文字
+可读，未显示 Token、`.env`、本机绝对路径或原始数据。最终还需匿名下载并复核视频哈希。

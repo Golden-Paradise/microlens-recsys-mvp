@@ -244,8 +244,10 @@ its decision, commands, result, failure and fix before the corresponding commit 
   remain excluded. Conservatively, the 77,575,939-byte full runtime bundle will also remain
   private because it contains user mappings, histories, badcases and other interaction-derived
   structures.
-- The public model evidence package is limited to `bm25_model.npz`, `item_ids.json`, and
-  `model_release_manifest_v0.3.0.json`, optionally with aggregate evaluation JSON. It excludes
+- The public model evidence ZIP is limited to `bm25_model.npz`, `item_ids.json`, and a
+  sanitized package-internal `model_manifest.json`. The repository tracks the outer archive
+  digest in `reports/model_release_manifest_v0.3.0.json`, and aggregate evaluation is a
+  separate Release asset. The public package excludes
   `serving_user_items`, every `user_ids` mapping, `badcases.csv`,
   `title_tfidf_items`/`content_config`, and all raw or processed data.
 - This compact package is model evidence, not a standalone official-data runtime. The clean,
@@ -563,3 +565,40 @@ Each subsequent entry must include:
   `cc327cba71bf0c264fdee3ad0384f01bdb7b6a207da2484b4bfffe68d94e6662`. The closing evidence
   slide was extended by two seconds so the next run stays above the internal lower bound
   without adding a new journey.
+
+## 2026-09-03 - Public repository, clean clone and approved final media
+
+- Feature commit `0c33477` passed run `33655156913`; main was fast-forwarded without a merge
+  commit and the same SHA passed main run `33655708151` in 44 seconds. After the video-timing
+  corrections, `06dde32` passed run `33657938390` in 33 seconds. Each Ubuntu/Python 3.11 run
+  completed frozen install, Ruff, 70 tests, offline smoke and online publish/rollback smoke.
+- Full-history scan covered 20 commits: secret-pattern hits 0, local-absolute-path hits 0,
+  maximum blob 269,663 bytes. The two apparent data-path hits were only tracked `.gitkeep`
+  files. Before visibility changed, the v0.1 ALS runtime and both v0.2 runtime/checksum assets
+  were deleted; the remaining historical Release descriptions were corrected.
+- Repository visibility then changed to public. A request without repository credentials
+  returned HTTP 200. A new OS-temp anonymous clone resolved to `0c33477`, contained no `.env`
+  or runtime model, installed 65 locked packages, passed 70 tests in 47.41 seconds, returned
+  `status=ok` from both smoke paths and ended with a clean worktree. The final tag will be
+  cloned once more after the release-evidence commit.
+- The accepted recording is `00:04:33.96`, VP8/yuv420p, 1280x720, 25 fps and 14,543,758 bytes;
+  SHA256 is `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`.
+  `blackdetect` reported no continuous black segment, and 22 sampled frames from 00:05 through
+  04:29 were visually checked for readable content, journey coverage and sensitive data.
+- Release allowlist validation found exactly `bm25_model.npz`, `item_ids.json` and
+  `model_manifest.json`. The reconstructed BM25 CSR is 19220x19220 with 1,261,872 sorted
+  float64 entries; 19,220 unique item IDs, member byte counts and SHA256 values match the
+  sanitized manifest. Aggregate evaluation contains no per-user ID/history fields.
+- A first validation command used `uv run` in the live service checkout and failed because
+  Windows refused to replace the locked `.venv/Lib`. No artifact changed. The check was rerun
+  with the already validated fresh-clone Python environment and passed; this avoids stopping
+  the service mid-recording or treating a locked environment as a model failure.
+- After recording, process inspection found older repository Uvicorn services still listening
+  on ports 8000 and 8001 and holding the same virtual environment. Only processes whose command
+  lines resolved to this checkout and `app.main:app` were stopped. `uv sync --frozen --python
+  3.11` then rebuilt the environment; 70 tests passed in 42.74 seconds with eight documented
+  upstream warnings, Ruff and all three Node syntax checks passed, both smoke paths returned
+  `status=ok`, and `git diff --check` found no whitespace error.
+- Remaining at this point: final evidence commit, tag/Release upload, anonymous asset download
+  and checksum/structure/link verification. These remain pending until the remote operations
+  finish.

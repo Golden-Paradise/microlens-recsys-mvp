@@ -20,8 +20,8 @@
 - 严格 artifact checksum/维度校验、candidate 默认不激活、原子 pointer、单 worker 模型发布/
   回滚、previous 启动恢复和 last-known-good 保护。
 - 本地 70 项自动化测试、Ruff、Node syntax、diff check、双 artifact publish/rollback smoke 和
-  1280x720/390x844 浏览器验收已通过。首版 4:51 v0.3 视频因未覆盖全部五段必选旅程已被拒绝，
-  最终视频必须在公开仓库、真实 CI 和 fresh-clone Gate 完成后重录并回验。
+  1280x720/390x844 浏览器验收已通过。公开仓库、真实 CI 与匿名 fresh clone 均已验证；最终
+  04:33.96 视频覆盖五段必选旅程，并通过运行断言、黑帧检测和 22 个关键帧复核。
 
 ## Mock 与未完成
 
@@ -37,7 +37,7 @@
 | 主动告警通知 | 未做 | Dashboard 有阈值和被动警告，没有短信、邮件或 on-call 集成 |
 | 神经召回、排序与多模态 | 未做 | DSSM/DeepFM、checkpoint/早停、图像/视频特征属于加分项 |
 | 公网 Demo | 未做 | 本地 `127.0.0.1:8000` 可完整验收；不对外暴露带写权限的管理面 |
-| v0.3 远端发布收口 | 提交前待完成 | 分支、CI、最小公开模型包、视频 Release 和最终 fresh clone 尚需远端核验 |
+| v0.3 远端发布收口 | 部分待完成 | 仓库公开、main CI、fresh clone、模型包和视频已验；仅 tag/Release 上传与匿名回下载待完成 |
 
 标题 TF-IDF、checksum、模型发布/回滚和延迟/fallback 观测均已实现，不再列入未来功能。标题
 TF-IDF 只在 validation pure-cold 切片显示正信号，因 overall NDCG 未胜出而没有成为正式

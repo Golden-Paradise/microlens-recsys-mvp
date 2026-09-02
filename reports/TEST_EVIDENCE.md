@@ -1,11 +1,11 @@
 # 测试与验收证据
 
-> 状态口径：本文件区分 `LOCAL PASS`、历史证据和 `PENDING`。只有命令已经执行且输出已
-> 复核才标为通过；尚未发生的 v0.3 远端 CI、Release 和 fresh clone 不用计划代替结果。
+> 状态口径：本文件区分 `LOCAL PASS`、`REMOTE PASS`、历史证据和 `PENDING`。只有命令已经
+> 执行且输出已复核才标为通过；尚未发生的 v0.3 tag/Release 不用计划代替结果。
 
 ## v0.3 本地自动化 Gate
 
-2026-09-03 在以 `feat/v0.3-coldstart-runtime@2e8936f` 为基线的最终交付工作树执行：
+2026-09-03 在合并前的 v0.3 最终交付工作树执行；实现与文档准备提交为 `0c33477`：
 
 | 命令 | 当前结果 |
 |---|---|
@@ -89,18 +89,23 @@ console warning/error 为 0；模型证据、运行状态、P95 warning、请求
 - 首版 v0.3 视频：291.24 秒、1280x720、13,138,718 bytes，SHA256
   `5FF1D5524FD9655B65DF059ABB3CABDB43DED0DB8A1DCC6A62F34636AD501ECB`。本地文件和五个抽帧
   已核验，但因缺少 Bob、完整启动链路和强推/下线/恢复等旅程而被拒绝，不能作为最终交付。
-  替换视频必须在远端 CI、公开仓库与 fresh clone 真实完成后重录，其链接和哈希当前为 `PENDING`。
+  替换视频已在远端 CI、公开仓库与 fresh clone 真实完成后重录。
+- 最终 v0.3 视频：`04:33.96`、VP8/yuv420p、1280x720、25fps、14,543,758 bytes，SHA256
+  `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`。脚本对双用户差异、
+  #40 强推首位、下线 API 过滤、恢复和模型 publish/rollback 逐项断言；`blackdetect` 无连续黑帧
+  命中，22 个开场到结尾关键帧已人工检查。两段完整候选分别因 `05:09.40` 超过 PDF 上限和
+  `04:29.72` 低于内部下限而被拒绝，未作为发布资产。
 
 ## v0.3 远端交付状态
 
 | Gate | 状态 | 当前证据/完成条件 |
 |---|---|---|
-| v0.3 分支与最终提交推送 | `PENDING` | 远端仍停在 v0.2；先完成文档审计和本地 Gate |
-| 当前 v0.3 SHA 的 GitHub Actions | `PENDING` | 不复用 v0.2 run 冒充 v0.3 CI |
+| v0.3 分支与 main 推送 | `REMOTE PASS` | feature/main 均包含 v0.3；视频 Gate commit 为 `06dde32` |
+| 当前 v0.3 SHA 的 GitHub Actions | `REMOTE PASS` | run `33657938390`，Ubuntu/Python 3.11，33 秒，全绿 |
 | `v0.3.0` tag/Release | `PENDING` | 当前没有该 tag 或 Release；本地文件不等于上传 |
-| 公开精简模型证据包 | `PENDING` | 只含 BM25、item IDs、release manifest，可附聚合评估 JSON |
-| v0.3 fresh clone | `PENDING` | 从最终远端 ref 新目录执行 frozen sync 与 smoke |
-| 仓库可访问性 | `PENDING` | 已决定公开源码仓库；实际 visibility 改完后再标完成 |
+| 公开精简模型证据包 | `LOCAL PASS` | 10,535,942 bytes；3 成员 allowlist、CSR 结构与成员哈希通过，远端回验待发布 |
+| v0.3 fresh clone | `REMOTE PASS / final tag 待复验` | 匿名 clone `0c33477`，frozen sync、70 tests、offline+online smoke 全部通过 |
+| 仓库可访问性 | `REMOTE PASS` | GitHub visibility=`PUBLIC`；未带凭据的网页请求返回 200 |
 
 公开精简 ZIP 只包含 `bm25_model.npz`、`item_ids.json` 和包内清洗后的
 `model_manifest.json`；仓库中的 `model_release_manifest_v0.3.0.json` 另行记录外层 ZIP 哈希，
@@ -108,6 +113,10 @@ console warning/error 为 0；模型证据、运行状态、P95 warning、请求
 `serving_user_items`、全部 `user_ids`、`badcases.csv`、`title_tfidf_items`/
 `content_config` 以及原始/处理数据。它是模型证据包，不宣称可脱离官方历史直接启动；无数据
 可运行验收由 synthetic smoke 完成。
+
+公开前对 20 个历史提交扫描：密钥模式和本机绝对路径命中均为 0，最大 blob 为 269,663 bytes；
+历史路径规则只命中两个 `.gitkeep`。v0.1 ALS runtime、v0.2 runtime ZIP 及其 checksum 已从旧
+Release 删除，v0.1 视频保留但 Release 标题/正文已标注为历史记录。
 
 ## 历史 v0.2 自动化
 
