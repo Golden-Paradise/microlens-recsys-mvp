@@ -557,3 +557,9 @@ Each subsequent entry must include:
   wait for the matching main CI, then record again with that commit/run URL. Accept the
   replacement only after codec, 1280x720 geometry, duration, black-frame and sampled-frame
   inspection all pass.
+- The second recording was VP8/1280x720 and passed every product assertion, but measured
+  `00:04:29.72`, 0.28 seconds below the plan's stricter 4:30-4:55 target even though it was
+  inside the PDF's 3-5 minute requirement. The rejected 14,894,337-byte candidate had SHA256
+  `cc327cba71bf0c264fdee3ad0384f01bdb7b6a207da2484b4bfffe68d94e6662`. The closing evidence
+  slide was extended by two seconds so the next run stays above the internal lower bound
+  without adding a new journey.

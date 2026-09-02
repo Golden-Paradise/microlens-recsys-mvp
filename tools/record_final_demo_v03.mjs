@@ -312,7 +312,7 @@ try {
     "576 个 pure-cold Test target 仍未被正式策略命中；TF-IDF 是 validation 正信号、overall 负实验",
     `<strong>GitHub Actions: success</strong> · <code>${escapeHtml(ciRunUrl.replace("https://github.com/Golden-Paradise/microlens-recsys-mvp/", ""))}</code>`,
     "边界：本地单 worker + SQLite Demo + 被动告警；不宣称线上因果收益或通用 SLA",
-  ], 18000);
+  ], 20000);
   completed = true;
 } finally {
   await ensureInitialState();
