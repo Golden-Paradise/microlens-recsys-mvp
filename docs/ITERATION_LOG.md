@@ -602,3 +602,28 @@ Each subsequent entry must include:
 - Remaining at this point: final evidence commit, tag/Release upload, anonymous asset download
   and checksum/structure/link verification. These remain pending until the remote operations
   finish.
+
+## 2026-09-03 - v0.3.0 release and anonymous verification
+
+- Evidence commit `ae24b15` passed main run `33659874652` in 30 seconds. A new anonymous clone
+  of that exact public commit contained no `.env`, raw data or model files, installed the frozen
+  Python 3.11 environment, passed 70 tests in 44.63 seconds, passed offline and online
+  publish/rollback smoke, and ended with a clean worktree.
+- Annotated tag `v0.3.0` was created only after those Gates and dereferences to `ae24b15`.
+  Release `https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0`
+  was published at 2026-09-02T17:18:51Z with four uploaded assets.
+- The GitHub-reported digest of every draft asset matched local bytes before publication. A
+  separate unauthenticated HTTP download then reproduced: model ZIP 10,535,942 bytes / SHA256
+  `c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65`;
+  aggregate evaluation 9,570 bytes /
+  `8b19275594b7de737ad5cbfd4c30a5b6626588647841714d7922b8b831451a71`; final video
+  14,543,758 bytes /
+  `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`; and the
+  297-byte SHA256 manifest /
+  `358e14bf7328c079987da98da90bf6d7f482232e0eff929ca347560eca96e525`.
+- The downloaded checksum manifest verified all three payloads. The downloaded model ZIP again
+  passed the exact three-member allowlist, 19220x19220 sorted CSR / 1,261,872 nonzero structure,
+  19,220 unique item IDs, member hashes and all-false per-user privacy flags. The aggregate JSON
+  contained no per-user ID/history fields; the video remained VP8 1280x720 at 04:33.96.
+- The public Release page returned anonymous HTTP 200 and listed all four assets. This evidence
+  is appended on `main` after the immutable tag; `v0.3.0` is not moved.

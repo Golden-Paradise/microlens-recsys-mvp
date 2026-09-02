@@ -5,8 +5,8 @@ TF-IDF validation 选型 -> 多用户 Feed 与反馈 -> 时间趋势 Dashboard -
 回滚 -> 请求链路和运行告警。
 
 - 公开仓库：<https://github.com/Golden-Paradise/microlens-recsys-mvp>
-- v0.3 Release（tag 后发布）：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0>
-- 最终视频：04:33.96、1280x720、VP8；Release 上传后提供直链
+- v0.3 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0>
+- 最终视频：[04:33.96、1280x720、VP8](https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.3.0/microlens-recsys-v0.3.0-demo.webm)
 - v0.2 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>
 - v0.1 历史视频 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.1.0-als>
 - 本地 Demo：<http://127.0.0.1:8000/login>
@@ -102,10 +102,11 @@ Validation 有 844 个 pure-cold target，Test 有 576 个；Word/q1 pure-cold R
 达到 `0.05450/0.01241`，但 overall NDCG=`0.03697` 低于 BM25 的 `0.03714`，故不上线。
 
 CI 在 Ubuntu/Python 3.11 执行 frozen sync、Ruff、pytest 和包含真实 publish/rollback 的 synthetic
-smoke。最终视频对应的 main run `33657938390` 在 33 秒内全绿：
-<https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33657938390>。公开仓库的匿名
-fresh clone 已在新系统临时目录对实现提交 `0c33477` 完成 frozen sync、70 tests、offline smoke
-和 online publish/rollback smoke；最终 tag 仍会再做一次独立复验。
+smoke。最终视频对应的 main run `33657938390` 在 33 秒内全绿；tag 提交 `ae24b15` 对应的
+run `33659874652` 在 30 秒内全绿：
+<https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33659874652>。公开仓库的匿名
+fresh clone 已对 `v0.3.0`/`ae24b15` 完成 frozen sync、70 tests、offline smoke 和 online
+publish/rollback smoke，且没有复用数据库、官方数据或模型。
 
 ## 6. 环境变量
 

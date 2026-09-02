@@ -124,7 +124,8 @@ Newton 不改领域服务；正式 Test 只能在 validation 冻结后由主 Age
 v0.3 对外措辞由证据约束：TF-IDF 是 validation 上的 pure-cold 正收益、overall 负实验；正式
 Test 只有 BM25；24 请求 latency 是本机阶段性观测；Dashboard warning 是被动状态，不是生产
 告警；系统只保证单 worker。AI 参与实现不等于这些结论自动成立，所有结论均由产物、命令和
-浏览器复核；远端 Release hash 只有在 G5 实际发布并重新下载后才记录。
+浏览器复核；远端 Release hash 在 G5 实际发布并匿名重新下载后才记录，最终四项资产均完成
+该回验。
 
 最终公开审计发现，本地完整 runtime 含 `serving_user_items.npz` 和逐用户 Badcase，不能随公开
 仓库提供二次下载。主 Agent据此否决原 runtime Release 方案：完整 bundle 保持本地且被 Git
@@ -134,4 +135,4 @@ Test 只有 BM25；24 请求 latency 是本机阶段性观测；Dashboard warnin
 最终发布仍由主 Agent逐项执行而非交给 subagent 直接写远端：先删除旧 Release 中的用户级
 衍生资产，再公开仓库、匿名 fresh clone、等待 main CI、录制并抽帧。首个公开后成片因
 `05:09.40` 超过 PDF 上限被拒绝，第二个因 `04:29.72` 低于内部 4:30 下限被拒绝；调整仅改变
-说明停留时间，五段真实操作与断言保持不变。最终 `04:33.96` 成片才进入待发布目录。
+说明停留时间，五段真实操作与断言保持不变。最终 `04:33.96` 成片才作为最终发布资产。

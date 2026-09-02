@@ -43,19 +43,24 @@ All notable changes, compatibility notes, and verification evidence are recorded
 - Official artifact: 66,730,787 bytes, 11 SHA256 entries verified; `checksums.json` SHA256
   `c2a7e56f285f7eae486af9dfba10a7315c846ad6e9dd39226ba00cecf821f28a`.
 - The 77,575,939-byte full runtime remains local because it contains official user-history
-  derivatives. The locally verified 10,535,942-byte public candidate contains only BM25
-  weights, item IDs and a sanitized manifest; SHA256 is
+  derivatives. The published 10,535,942-byte public package contains only BM25 weights, item
+  IDs and a sanitized manifest; its anonymously re-downloaded SHA256 is
   `c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65`.
 - Removed the historical v0.1/v0.2 runtime assets before making the repository public because
   they contained user-level interaction-derived structures. The v0.1 video remains clearly
   labeled as historical evidence.
-- Public main CI run `33657938390` passed on Ubuntu/Python 3.11. An anonymous fresh clone of
-  implementation commit `0c33477` passed frozen sync, 70 tests and both smoke paths without
-  copying a database, official data or a model artifact.
+- Public main CI run `33657938390` passed for the recorded implementation and run
+  `33659874652` passed for tag commit `ae24b15` on Ubuntu/Python 3.11. An anonymous fresh clone
+  of the tag commit passed frozen sync, 70 tests and both smoke paths without copying a
+  database, official data or a model artifact.
 - Two otherwise complete recordings were rejected at `05:09.40` and `04:29.72` for missing
   the duration Gate. The accepted 14,543,758-byte replacement is VP8/1280x720 at `04:33.96`,
   covers all five mandatory journeys and has SHA256
   `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`.
+- Release `v0.3.0` was published at 2026-09-02T17:18:51Z. All four assets were anonymously
+  downloaded; byte counts and SHA256 values matched, the checksum manifest verified all three
+  payloads, the model archive passed its allowlist/CSR/privacy checks, and the tag still
+  dereferenced to `ae24b15`.
 - Pin the project default to Python 3.11 and make pytest/CLI Gate commands use module startup,
   avoiding Windows editable-install path decoding failures in checkouts with non-ASCII names.
 

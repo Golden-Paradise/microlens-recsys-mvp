@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release_id": "v0.3.0-public-model",
-  "package_status": "packaged_local_pending_remote_verification",
+  "package_status": "published_and_anonymously_verified",
   "public_package": {
     "archive_name": "microlens-bm25-model-v0.3.0.zip",
     "policy": "allowlist_only",
@@ -13,7 +13,18 @@
     ],
     "archive_bytes": 10535942,
     "archive_sha256": "c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65",
-    "note": "These are the locally packaged values. Release publication is incomplete until an anonymous remote download matches both values."
+    "release_url": "https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.3.0/microlens-bm25-model-v0.3.0.zip",
+    "note": "The anonymous remote download matched the local byte count and SHA256, and passed the member allowlist and CSR structure checks."
+  },
+  "release_verification": {
+    "release_page": "https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0",
+    "published_at": "2026-09-02T17:18:51Z",
+    "verified_at": "2026-09-02T17:20:26.469Z",
+    "tag_commit": "ae24b15a03efd632709db5dd6ff51fcc1203a3ee",
+    "anonymous_download": true,
+    "evaluation_asset_sha256": "8b19275594b7de737ad5cbfd4c30a5b6626588647841714d7922b8b831451a71",
+    "video_asset_sha256": "0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed",
+    "checksum_manifest_sha256": "358e14bf7328c079987da98da90bf6d7f482232e0eff929ca347560eca96e525"
   },
   "model": {
     "model_version": "hybrid-bm25-f64-764b7d14ce34-20260901T173618808761Z",

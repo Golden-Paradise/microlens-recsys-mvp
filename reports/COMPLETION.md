@@ -37,7 +37,7 @@
 | 主动告警通知 | 未做 | Dashboard 有阈值和被动警告，没有短信、邮件或 on-call 集成 |
 | 神经召回、排序与多模态 | 未做 | DSSM/DeepFM、checkpoint/早停、图像/视频特征属于加分项 |
 | 公网 Demo | 未做 | 本地 `127.0.0.1:8000` 可完整验收；不对外暴露带写权限的管理面 |
-| v0.3 远端发布收口 | 部分待完成 | 仓库公开、main CI、fresh clone、模型包和视频已验；仅 tag/Release 上传与匿名回下载待完成 |
+| v0.3 远端发布收口 | 已完成 | `v0.3.0` tag/Release、四附件、匿名下载、哈希、ZIP 结构和公开链接均已回验 |
 
 标题 TF-IDF、checksum、模型发布/回滚和延迟/fallback 观测均已实现，不再列入未来功能。标题
 TF-IDF 只在 validation pure-cold 切片显示正信号，因 overall NDCG 未胜出而没有成为正式

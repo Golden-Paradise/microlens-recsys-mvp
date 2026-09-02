@@ -1,7 +1,7 @@
 # 测试与验收证据
 
-> 状态口径：本文件区分 `LOCAL PASS`、`REMOTE PASS`、历史证据和 `PENDING`。只有命令已经
-> 执行且输出已复核才标为通过；尚未发生的 v0.3 tag/Release 不用计划代替结果。
+> 状态口径：本文件区分 `LOCAL PASS`、`REMOTE PASS` 和历史证据。只有命令已经执行且输出
+> 已复核才标为通过。
 
 ## v0.3 本地自动化 Gate
 
@@ -95,16 +95,17 @@ console warning/error 为 0；模型证据、运行状态、P95 warning、请求
   #40 强推首位、下线 API 过滤、恢复和模型 publish/rollback 逐项断言；`blackdetect` 无连续黑帧
   命中，22 个开场到结尾关键帧已人工检查。两段完整候选分别因 `05:09.40` 超过 PDF 上限和
   `04:29.72` 低于内部下限而被拒绝，未作为发布资产。
+  最终视频：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.3.0/microlens-recsys-v0.3.0-demo.webm>。
 
 ## v0.3 远端交付状态
 
 | Gate | 状态 | 当前证据/完成条件 |
 |---|---|---|
-| v0.3 分支与 main 推送 | `REMOTE PASS` | feature/main 均包含 v0.3；视频 Gate commit 为 `06dde32` |
-| 当前 v0.3 SHA 的 GitHub Actions | `REMOTE PASS` | run `33657938390`，Ubuntu/Python 3.11，33 秒，全绿 |
-| `v0.3.0` tag/Release | `PENDING` | 当前没有该 tag 或 Release；本地文件不等于上传 |
-| 公开精简模型证据包 | `LOCAL PASS` | 10,535,942 bytes；3 成员 allowlist、CSR 结构与成员哈希通过，远端回验待发布 |
-| v0.3 fresh clone | `REMOTE PASS / final tag 待复验` | 匿名 clone `0c33477`，frozen sync、70 tests、offline+online smoke 全部通过 |
+| v0.3 分支与 main 推送 | `REMOTE PASS` | feature/main 均包含 v0.3；tag commit 为 `ae24b15` |
+| 当前 v0.3 SHA 的 GitHub Actions | `REMOTE PASS` | run `33659874652`，Ubuntu/Python 3.11，30 秒，全绿 |
+| `v0.3.0` tag/Release | `REMOTE PASS` | tag 解引用为 `ae24b15`；Release 发布于 2026-09-02T17:18:51Z |
+| 公开精简模型证据包 | `REMOTE PASS` | 10,535,942 bytes；匿名下载后 allowlist、CSR、隐私标志、成员哈希通过 |
+| v0.3 fresh clone | `REMOTE PASS` | 匿名 clone `ae24b15`，frozen sync、70 tests、offline+online smoke 全部通过 |
 | 仓库可访问性 | `REMOTE PASS` | GitHub visibility=`PUBLIC`；未带凭据的网页请求返回 200 |
 
 公开精简 ZIP 只包含 `bm25_model.npz`、`item_ids.json` 和包内清洗后的
@@ -113,6 +114,21 @@ console warning/error 为 0；模型证据、运行状态、P95 warning、请求
 `serving_user_items`、全部 `user_ids`、`badcases.csv`、`title_tfidf_items`/
 `content_config` 以及原始/处理数据。它是模型证据包，不宣称可脱离官方历史直接启动；无数据
 可运行验收由 synthetic smoke 完成。
+
+Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0>。匿名下载结果：
+
+- 模型 ZIP：10,535,942 bytes，SHA256
+  `c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65`。
+- 聚合评估 JSON：9,570 bytes，SHA256
+  `8b19275594b7de737ad5cbfd4c30a5b6626588647841714d7922b8b831451a71`。
+- 最终视频：14,543,758 bytes，SHA256
+  `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed`。
+- SHA256 清单：297 bytes，SHA256
+  `358e14bf7328c079987da98da90bf6d7f482232e0eff929ca347560eca96e525`；其中三项 payload 全部匹配。
+
+远端 ZIP 仍严格只有 `bm25_model.npz`、`item_ids.json`、`model_manifest.json`。BM25 可重建为
+19220x19220、1,261,872 个非零值的有序 CSR；19,220 个 item ID 唯一，包内四个
+`contains_*` 隐私标志均为 false。Release 页面匿名 HTTP 200，四个附件链接均存在。
 
 公开前对 20 个历史提交扫描：密钥模式和本机绝对路径命中均为 0，最大 blob 为 269,663 bytes；
 历史路径规则只命中两个 `.gitkeep`。v0.1 ALS runtime、v0.2 runtime ZIP 及其 checksum 已从旧

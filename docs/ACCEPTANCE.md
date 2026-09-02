@@ -18,8 +18,8 @@
 | 模型运行 | 数据版本、训练时间、指标、发布状态；失败不覆盖 | 模型版本测试 | PASS |
 | 内容运营 | 搜索、强推范围与有效期、下线、恢复、审计 | 运营端到端测试 | PASS |
 | 下线权威 | 所有 Feed、强推和直接内容 API 最终过滤 | 冲突优先级测试 | PASS |
-| 工程启动 | 干净环境按 README 启动，无真实密钥 | 公开仓库匿名 fresh clone：frozen sync、70 tests、offline+online smoke | PASS；最终 tag 再复验 |
-| 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | 最终视频 04:33.96、1280x720、VP8，22 个关键帧人工复核 | PASS；Release 上传待完成 |
+| 工程启动 | 干净环境按 README 启动，无真实密钥 | `v0.3.0` 匿名 fresh clone：frozen sync、70 tests、offline+online smoke | PASS |
+| 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | Release 最终视频 04:33.96、1280x720、VP8，22 个关键帧人工复核 | PASS |
 
 ## v0.2 可选加分项
 
@@ -58,7 +58,7 @@ v0.3 视频已在公开仓库、真实 CI 和 fresh-clone smoke 完成后重录�
 | 真实 runtime smoke | 两个微型严格 artifact，publish、新请求切版、rollback | PASS；临时目录，不复用本机状态 |
 | 最终单视频 | 4:30-4:55，覆盖 PDF 五段必选旅程和 v0.3 决策/发布证据 | PASS；04:33.96，运行断言 + 黑帧检测 + 22 个关键帧复核 |
 | 本地完整 runtime | 双版本 + v2 pointer，解压后 strict load/publish/rollback | PASS（仅本地）；含官方用户历史衍生物，不公开上传 |
-| 公开 BM25 模型包 | 权重、item 索引、模型清单；排除用户矩阵/Badcase/标题向量 | LOCAL PASS；3 成员/CSR/哈希已验，Release 匿名回验待完成 |
+| 公开 BM25 模型包 | 权重、item 索引、模型清单；排除用户矩阵/Badcase/标题向量 | REMOTE PASS；匿名下载后 3 成员/CSR/隐私标志/哈希复验通过 |
 
 正式 v0.3 结论：内容召回证明“pure-cold 有信号”，没有证明“overall 更优”。因此线上仍为
 BM25；这项负实验与未运行的 Test 均保留在 artifact、Dashboard 和评估报告中。

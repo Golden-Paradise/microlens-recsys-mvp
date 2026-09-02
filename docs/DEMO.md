@@ -2,18 +2,18 @@
 
 ## 交付状态
 
-v0.3 最终视频已在远端 CI、公开仓库和 fresh-clone smoke 完成后录制，并通过媒体与关键帧
-检查。当前只剩 tag/Release 上传及匿名回下载，因此下表继续区分本地成片和远端发布状态。
+v0.3 最终视频已在远端 CI、公开仓库和 fresh-clone smoke 完成后录制，并通过媒体、关键帧、
+Release 上传和匿名回下载检查。
 
 | 证据 | 当前值 |
 |---|---|
-| 最终视频 | 本地核验通过：`microlens-recsys-v0.3.0-demo.webm`；Release 上传待完成 |
+| 最终视频 | <https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/download/v0.3.0/microlens-recsys-v0.3.0-demo.webm> |
 | 视频时长、分辨率、编码和大小 | `04:33.96`、1280x720、VP8/yuv420p、25fps、14,543,758 bytes |
 | 视频 SHA256 | `0a963e09f28b8aa340ad592d8198bf40d4e23d1ba1694e1975fff5f7422665ed` |
-| v0.3 Release URL | `PENDING` |
-| GitHub Actions run URL | <https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33657938390> |
-| GitHub Actions conclusion | `success`；Ubuntu/Python 3.11，33 秒，lint/70 tests/offline+online smoke |
-| fresh-clone commit 与 smoke 结果 | `0c33477`；frozen sync、70 tests、offline smoke、publish/rollback smoke 全部通过；最终 tag 待复验 |
+| v0.3 Release URL | <https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.3.0> |
+| GitHub Actions run URL | 视频 Gate `33657938390`；tag Gate <https://github.com/Golden-Paradise/microlens-recsys-mvp/actions/runs/33659874652> |
+| GitHub Actions conclusion | 两个 run 均为 `success`；tag Gate Ubuntu/Python 3.11、30 秒、lint/70 tests/offline+online smoke |
+| fresh-clone commit 与 smoke 结果 | `v0.3.0`/`ae24b15`；frozen sync、70 tests、offline smoke、publish/rollback smoke 全部通过 |
 
 早期 `04:51` 候选视频因缺少 Bob、完整启动链路和强推/下线/恢复而被拒绝。公开后又有两段
 完整候选分别因 `05:09.40` 超过 PDF 上限、`04:29.72` 低于内部 4:30 下限而被拒绝；只有上表
@@ -67,8 +67,9 @@ $env:BASE_URL = 'http://127.0.0.1:8001'
 node tools/capture_final_evidence_v03.mjs
 ```
 
-## 发布后回填
+## 发布后验证
 
-Release 真正发布后才替换剩余的 URL `PENDING`。发布前检查已完成：连续黑帧检测无命中，抽查
-22 个关键帧覆盖开场、双用户、行为闭环、内容下线、模型回滚、请求链路、CI 和结尾指标；文字
-可读，未显示 Token、`.env`、本机绝对路径或原始数据。最终还需匿名下载并复核视频哈希。
+发布前连续黑帧检测无命中，抽查 22 个关键帧覆盖开场、双用户、行为闭环、内容下线、模型
+回滚、请求链路、CI 和结尾指标；文字可读，未显示 Token、`.env`、本机绝对路径或原始数据。
+发布后匿名下载的视频仍为 14,543,758 bytes，SHA256 与上表一致，媒体信息仍为 04:33.96、
+VP8、1280x720、25fps。
