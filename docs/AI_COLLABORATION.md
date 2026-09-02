@@ -48,8 +48,9 @@ AI 生成了大部分实现首稿、测试和文档草稿，约占代码编写�
 
 - 每个 Gate 独立 commit/push；`pytest`、Ruff、synthetic smoke、官方全量训练/回载、模型 checksum。
 - FastAPI TestClient 覆盖认证、权限、事件幂等、运营冲突和 fallback；真实浏览器覆盖主要旅程与响应式布局。
-- v0.1 私有 Release 同时提供 ALS bundle 与 04:08 视频，分别记录 SHA256；原数据、PDF、
-  数据库和密钥不上传。v0.2 Release 只提供模型 bundle 与独立 SHA256 文件，不上传新视频。
+- v0.1 私有阶段 Release 同时提供 ALS bundle 与 04:08 视频，分别记录 SHA256；原始数据、PDF、
+  数据库和密钥未上传。最终公开审计进一步确认 v0.1/v0.2 的旧模型 bundle 含用户交互衍生
+  结构，因此必须在 visibility 改为 public 前移除，不能把“无原始 TSV”误写成“无用户数据”。
 
 ## v0.2 并行迭代记录
 
@@ -87,3 +88,45 @@ v0.2 代码首稿仍主要由 AI/subagent 生成；指标口径、选型、修�
 和对外结论由主 Agent 基于真实命令与产物复核。RRF 的 Recall 更高但
 NDCG 更低，因此没有为了
 展示复杂架构而冒充线上最优方案。
+
+## v0.3 并行迭代与主 Agent review
+
+| 角色 | 独占范围 | 首稿/审查输出 | 主 Agent 收口 |
+|---|---|---|---|
+| Rawls（Offline） | 内容召回模块与离线测试 | TF-IDF、pure-cold、quota、保存回载；正式指标审计 | 公共 manifest、线上 Hybrid K、正式 test 纪律、评估文档 |
+| Huygens（Backend） | ModelManager/观测聚合只读审查 | 锁、pointer、checksum、启动恢复、API/CI 缺口 | 公共 schema、API 注册、投影语义、runtime smoke |
+| Newton（Frontend） | Dashboard JS/CSS/UI 测试与只读 QA | 决策表、健康区、请求双栏/移动时间线审查 | 真实浏览器、缓存指纹、截图清理和证据命名 |
+| 主 Agent | 跨模块契约、正式训练、Git/Release | 集成、失败修复、70-test Gate、视频和 bundle | validation/test/线上边界与最终对外结论 |
+
+关键 prompt 约束：subagent 不自行 commit；Rawls 不改公共 manifest/engine，Huygens 不改模板，
+Newton 不改领域服务；正式 Test 只能在 validation 冻结后由主 Agent运行一次。二次审计均为只读，
+避免覆盖主线未提交改动。
+
+主 Agent review 后的代表性修复：
+
+1. Hybrid 最初向 bundle 取 Top-100 再截 Top-20，导致尾部 cold quota 在线不可见；改为按最终
+   展示 K 混排，并补真实 Engine 回归测试。
+2. CSV 空标题被 pandas 转成字符串 `nan`，且 analyzer 同分规则依赖配置顺序；改为先填空，
+   并显式执行“小 quota 优先、Word 优先”。
+3. 训练默认写 `latest.json` 会绕过管理发布；改为 candidate 默认，只有显式 `--activate`
+   才 bootstrap。
+4. v0.3 初稿未 checksum `manifest.json`，也未校验 BM25/Cosine 维度；两项均进入 strict Gate。
+   旧 artifact 可启动，但无 manifest checksum 不可经 publish/rollback 重新激活。
+5. 发布成功后若 SQLite 模型投影失败，旧 API 会返回 500，造成“模型已切但接口说失败”；现在
+   pointer/内存保持权威，响应附 `projection_warning`，投影可由后续 GET/启动修复。
+6. 前端最初把健康区与请求列表做成双栏，详情仍在旧区域；改为请求列表/详情同 section 双栏，
+   移动端纵向时间线。`test=null` 改为“未正式测试”，低于 20 样本改为“不判断告警”。
+7. 浏览器缓存仍加载旧通用 registry；最终使用 CSS+JS 内容 SHA，而不是手工版本号。修复前、
+   长页拼接和包含本机路径的截图均在 staging 前删除。
+8. 首轮 v0.3 视频因 headless UI 按钮没有发出 publish POST 而中止。日志确认后删除部分视频，
+   第二轮通过同一登录 session 调正式 API、重载 UI 展示状态，并用 `finally` 保证回滚。
+
+v0.3 对外措辞由证据约束：TF-IDF 是 validation 上的 pure-cold 正收益、overall 负实验；正式
+Test 只有 BM25；24 请求 latency 是本机阶段性观测；Dashboard warning 是被动状态，不是生产
+告警；系统只保证单 worker。AI 参与实现不等于这些结论自动成立，所有结论均由产物、命令和
+浏览器复核；远端 Release hash 只有在 G5 实际发布并重新下载后才记录。
+
+最终公开审计发现，本地完整 runtime 含 `serving_user_items.npz` 和逐用户 Badcase，不能随公开
+仓库提供二次下载。主 Agent据此否决原 runtime Release 方案：完整 bundle 保持本地且被 Git
+忽略；公开附件只保留 BM25 权重、无用户信息的 item 索引、模型清单和聚合指标。这个调整优先
+满足 MicroLens 数据边界，不把“模型可下载”建立在重新分发官方交互数据之上。

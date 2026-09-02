@@ -45,6 +45,7 @@ def test_root_redirects_to_feed_and_assets_are_local(web_client: TestClient) -> 
     assert web_client.get("/static/app.css").status_code == 200
     assert web_client.get("/static/app.js").status_code == 200
     assert web_client.get("/static/placeholder-cover.svg").status_code == 200
+    assert web_client.get("/favicon.ico").status_code == 200
 
     base_template = (TEMPLATE_DIR / "base.html").read_text(encoding="utf-8")
     assert "https://" not in base_template

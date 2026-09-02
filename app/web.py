@@ -38,6 +38,11 @@ def index() -> RedirectResponse:
     return RedirectResponse(url="/feed", status_code=302)
 
 
+@router.get("/favicon.ico", response_class=RedirectResponse)
+def favicon() -> RedirectResponse:
+    return RedirectResponse(url="/static/placeholder-cover.svg", status_code=302)
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(

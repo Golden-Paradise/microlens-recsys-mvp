@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "release_id": "v0.3.0-public-model",
+  "package_status": "packaged_local_pending_remote_verification",
+  "public_package": {
+    "archive_name": "microlens-bm25-model-v0.3.0.zip",
+    "policy": "allowlist_only",
+    "member_count": 3,
+    "allowed_members": [
+      "bm25_model.npz",
+      "item_ids.json",
+      "model_manifest.json"
+    ],
+    "archive_bytes": 10535942,
+    "archive_sha256": "c9eb3b87cc681b2c46ba366d1916222c413b7e682d769283fc446c037ee98b65",
+    "note": "These are the locally packaged values. Release publication is incomplete until an anonymous remote download matches both values."
+  },
+  "model": {
+    "model_version": "hybrid-bm25-f64-764b7d14ce34-20260901T173618808761Z",
+    "data_version": "764b7d14ce34",
+    "created_at": "2026-09-01T17:36:18.808761Z",
+    "algorithm": "Item-Item BM25 over implicit user-item interactions",
+    "serving_policy": "bm25",
+    "selection_metric": "validation.overall.ndcg_at_20",
+    "top_k": 20,
+    "formal_test": {
+      "evaluated_policies": [
+        "bm25"
+      ],
+      "overall": {
+        "targets": 50000,
+        "recall_at_20": 0.07822,
+        "ndcg_at_20": 0.03338273194515447,
+        "coverage_at_20": 0.9819979188345473
+      }
+    }
+  },
+  "members": [
+    {
+      "path": "bm25_model.npz",
+      "source": "private artifact/bm25_model.npz",
+      "bytes": 15220600,
+      "sha256": "a6f25dca2ef424f7c9d9d5541f4584dc30d997f6718e4a94052e4b7c87599be6",
+      "contains": "Sparse item-item BM25 matrix only; no user IDs or user histories."
+    },
+    {
+      "path": "item_ids.json",
+      "source": "Deterministically extract only the item_ids array from private mappings.json.",
+      "serialization": "UTF-8 JSON array with ensure_ascii=false, separators=(',', ':'), followed by one LF byte",
+      "items": 19220,
+      "bytes": 104498,
+      "sha256": "b962a8fbb9e97f64aa4aa4860b3f1d13e2979a8f83d24ceb6f913541992c9957",
+      "contains": "Official catalog item IDs only; user_ids must not be copied."
+    },
+    {
+      "path": "model_manifest.json",
+      "source": "Sanitized package-internal manifest generated from this release manifest before archive hashing.",
+      "contains": "Model identity, evaluation boundary and hashes for bm25_model.npz/item_ids.json; no archive hash or private artifact paths.",
+      "bytes": 2171,
+      "sha256": "121add70cdbffc42c11b9b33218a6320b9c410805c6e184e81925eea80bdca3e"
+    }
+  ],
+  "excluded_from_public_package": [
+    {
+      "path": "serving_user_items.npz",
+      "reason": "Contains the fitted per-user interaction matrix."
+    },
+    {
+      "path": "mappings.json:user_ids",
+      "reason": "Contains the model user ID mapping; only item_ids may be extracted."
+    },
+    {
+      "path": "mappings.json",
+      "reason": "The combined file also contains user_ids and must never be published as-is."
+    },
+    {
+      "path": "badcases.csv",
+      "reason": "Contains per-user targets, recent histories and recommendation item IDs."
+    },
+    {
+      "path": "title_tfidf_items.npz",
+      "reason": "Not used by the selected serving policy and excluded from the minimal release."
+    },
+    {
+      "path": "content_config.json",
+      "reason": "Configuration for an unselected content candidate; reproducible settings remain in the repository report and source config."
+    },
+    {
+      "path": "als_model.npz",
+      "reason": "Not used by the selected BM25 public package."
+    },
+    {
+      "path": "cosine_model.npz",
+      "reason": "Not used by the selected BM25 public package."
+    },
+    {
+      "path": "popularity.json",
+      "reason": "Can be rebuilt from official data and is unnecessary for the minimal BM25 export."
+    },
+    {
+      "path": "metrics.json",
+      "reason": "Evaluation is published as a reviewed repository report; the raw artifact file is outside the two-member allowlist."
+    },
+    {
+      "path": "manifest.json",
+      "reason": "The private runtime manifest references excluded files; this sanitized release manifest replaces it."
+    },
+    {
+      "path": "checksums.json",
+      "reason": "The private checksum set references excluded files; public member hashes are recorded here."
+    }
+  ],
+  "official_data": {
+    "project": "MicroLens",
+    "project_url": "https://github.com/westlake-repl/MicroLens",
+    "download_base_url": "https://recsys.westlake.edu.cn/MicroLens-50k-Dataset",
+    "source_files": [
+      "MicroLens-50k_pairs.tsv",
+      "MicroLens-50k_titles.csv",
+      "MicroLens-50k_likes_and_views.txt"
+    ],
+    "redistribution_boundary": "Do not include or repackage raw/processed MicroLens data. Download it from the official source and follow the upstream project terms."
+  },
+  "rebuild": {
+    "commands": [
+      "uv sync --frozen --python 3.11",
+      "uv run --python 3.11 python -m recsys.cli download",
+      "uv run --python 3.11 python -m recsys.cli prepare",
+      "$env:OPENBLAS_NUM_THREADS='1'; uv run --python 3.11 python -m recsys.cli train --processed-path data/processed --artifact-root artifacts --config configs/als.toml --activate"
+    ],
+    "configuration": "configs/als.toml",
+    "expected_data_summary": {
+      "users": 50000,
+      "items": 19220,
+      "interactions": 359708,
+      "train_interactions": 259708,
+      "validation_interactions": 50000,
+      "test_interactions": 50000
+    },
+    "notes": [
+      "The official pairs file provides per-user order but no trustworthy absolute timestamps.",
+      "Training creates a candidate by default and must not silently change the serving pointer.",
+      "Rebuild the complete private artifact locally; construct the public archive only from allowed_members.",
+      "The package-internal model_manifest.json cannot contain the outer archive digest; the repository release manifest and SHA256SUMS record that digest after packaging."
+    ]
+  }
+}

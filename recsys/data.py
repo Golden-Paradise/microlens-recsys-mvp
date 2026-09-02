@@ -49,7 +49,7 @@ def download_official_data(raw_dir: Path, *, force: bool = False) -> dict[str, d
             temporary = destination.with_suffix(destination.suffix + ".part")
             request = urllib.request.Request(
                 f"{OFFICIAL_BASE_URL}/{filename}",
-                headers={"User-Agent": "microlens-recsys-mvp/0.1"},
+                headers={"User-Agent": "microlens-recsys-mvp/0.3.0"},
             )
             try:
                 with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310

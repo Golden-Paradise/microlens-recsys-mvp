@@ -40,7 +40,7 @@ jobs:
         run: uv run --python 3.11 ruff check .
 
       - name: Test
-        run: uv run --python 3.11 pytest
+        run: uv run --python 3.11 python -m pytest
 
       - name: Run offline and online smoke
-        run: uv run --python 3.11 microlens smoke
+        run: uv run --python 3.11 python -m recsys.cli smoke

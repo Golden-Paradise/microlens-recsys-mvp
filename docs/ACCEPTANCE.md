@@ -18,8 +18,8 @@
 | 模型运行 | 数据版本、训练时间、指标、发布状态；失败不覆盖 | 模型版本测试 | PASS |
 | 内容运营 | 搜索、强推范围与有效期、下线、恢复、审计 | 运营端到端测试 | PASS |
 | 下线权威 | 所有 Feed、强推和直接内容 API 最终过滤 | 冲突优先级测试 | PASS |
-| 工程启动 | 干净环境按 README 启动，无真实密钥 | 全新 clone `uv sync --frozen` + `microlens smoke` | PASS |
-| 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | 04:08 Release 视频 + 抽帧 | PASS |
+| 工程启动 | 干净环境按 README 启动，无真实密钥 | v0.2 fresh clone 已通过；v0.3 等待 G5 复验 | PASS / G5 PENDING |
+| 文档视频 | README、API/DB、系统设计、完成度、3-5 分钟视频 | 文档已完成；历史视频覆盖不全，v0.3 最终单视频等待重录 | G5 PENDING |
 
 ## v0.2 可选加分项
 
@@ -34,10 +34,35 @@
 | 响应式验收 | 1280x720 与 390x844 目标 viewport、12 个真实 SVG 点、无横向溢出 | PASS |
 | CI | Ubuntu/Python 3.11 frozen sync、Ruff、30 tests、smoke | PASS；main run 39 秒，零 annotations |
 | 过程留痕 | Changelog、逐 Gate 日志、失败根因、修复和 run URL | PASS |
-| v0.2 Release | 36,866,255-byte bundle 与 SHA256，不含数据/视频 | PASS；远端 digest 回验一致 |
+| v0.2 历史 Release | 36,866,255-byte bundle 的 digest 曾回验一致 | 历史 PASS；含用户交互衍生矩阵/Badcase，公开前必须移除资产 |
 
-v0.2 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>。
-现有 v0.1 04:08 视频继续满足必选视频；v0.2 不重复录制，待 v0.3 候选功能冻结后统一更新。
+v0.2 历史 Release：<https://github.com/Golden-Paradise/microlens-recsys-mvp/releases/tag/v0.2.0>。
+旧 ZIP 没有原始 TSV，但含用户交互衍生结构，不符合最终公开边界；它只能作为私有阶段的过程
+记录，必须在仓库转 public 前从 Release 移除。
+现有 v0.1 04:08 视频只作为历史过程证据，不再认定满足最终必选视频；v0.3 将在远端 CI
+真实通过后重录单一最终视频。
+
+## v0.3 可选加分项
+
+| 加分能力 | 可复核证据 | 状态与边界 |
+|---|---|---|
+| 标题 TF-IDF 冷启动 | Word/char_wb、recent-10 画像、cold-only、NPZ 回载和 checksum 测试 | PASS；只在 validation 调 analyzer/quota |
+| Cold quota 消融 | quota 0/1/2/3/5，overall/warm/pure-cold 三切片 | PASS；pure-cold 提升但 overall 未胜，未上线 |
+| 正式 Test 纪律 | 冻结后 train+validation 重训，`metrics.test` 只含 BM25 | PASS；未入选策略显示“未正式测试” |
+| 模型完整性 | manifest/声明文件 SHA256、ALS/CSR/ItemCF/内容矩阵维度 | PASS；缺失/篡改/维度错均 409 |
+| 原子发布与回滚 | request snapshot、临时 pointer、fsync/replace、current/previous 交换 | PASS；单 Uvicorn worker |
+| 启动恢复 | current 坏尝试 previous；均坏 deterministic fallback 可查 | PASS；旧 bundle 启动兼容，未完整校验者不可重发 |
+| 决策证据 | validation/test 分栏、选型指标、BM25/TF-IDF 消融表 | PASS；DB 表是投影，不是运行权威 |
+| 请求时间线 | 列表/详情双栏，曝光顺序、来源、分数、理由和后续事件 | PASS；点击/点赞/负反馈共享曝光分母 |
+| 运行可观测性 | nearest-rank P50/P95/max、fallback rate、Feed/模型分组 | PASS；20 样本后被动告警，不是短信/邮件 |
+| 响应式 UI | 1280x720 与 390x844，SHA 静态缓存键，console 0 error/warning | PASS；表格局部横滚，页面无横向溢出 |
+| 真实 runtime smoke | 两个微型严格 artifact，publish、新请求切版、rollback | PASS；临时目录，不复用本机状态 |
+| 最终单视频 | 4:30-4:55，覆盖 PDF 五段必选旅程和 v0.3 决策/发布证据 | G5 PENDING；首版 4:51 视频因覆盖不全被拒绝 |
+| 本地完整 runtime | 双版本 + v2 pointer，解压后 strict load/publish/rollback | PASS（仅本地）；含官方用户历史衍生物，不公开上传 |
+| 公开 BM25 模型包 | 权重、item 索引、模型清单；排除用户矩阵/Badcase/标题向量 | G5 PENDING；发布后回验 SHA256 与内容 allowlist |
+
+正式 v0.3 结论：内容召回证明“pure-cold 有信号”，没有证明“overall 更优”。因此线上仍为
+BM25；这项负实验与未运行的 Test 均保留在 artifact、Dashboard 和评估报告中。
 
 ## 不接受项防线
 

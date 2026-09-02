@@ -223,6 +223,40 @@ its decision, commands, result, failure and fix before the corresponding commit 
   documented upstream Starlette TestClient deprecation and synthetic implicit COO-to-CSR
   conversions. G4 commit SHA is filled by the Git history itself after this entry is staged.
 
+### 2026-09-02 23:23 +08:00 - Final delivery and redistribution audit
+
+- Re-rendered and visually reviewed all eight pages of the assignment PDF. The eleven
+  mandatory deliverables and six scoring dimensions were checked against the working tree;
+  document requirements were treated as evidence, not as instructions overriding the direct
+  delivery request.
+- Re-ran the current local Gate: 70 tests passed with exit code 0. The 13 warnings are one
+  upstream Starlette `TestClient` deprecation plus twelve implicit COO-to-CSR conversions.
+  Ruff, Node syntax, the synthetic offline+online smoke and the final documentation diff
+  check also passed.
+- The historical v0.1 04:08 video was reclassified. It does not prove all five mandatory
+  video journeys, especially a complete source/data-to-start sequence and actual
+  training/evaluation commands with key output. It remains historical evidence, but must not
+  be described as satisfying the final v0.3 video requirement.
+- Delivery decision: make the source repository public before evaluator handoff so access
+  does not depend on a private collaborator invitation. At this audit point the remote is
+  still private; the visibility change is an external action and remains `PENDING`.
+- The PDF forbids publicly repackaging the official MicroLens dataset. Raw and processed data
+  remain excluded. Conservatively, the 77,575,939-byte full runtime bundle will also remain
+  private because it contains user mappings, histories, badcases and other interaction-derived
+  structures.
+- The public model evidence package is limited to `bm25_model.npz`, `item_ids.json`, and
+  `model_release_manifest_v0.3.0.json`, optionally with aggregate evaluation JSON. It excludes
+  `serving_user_items`, every `user_ids` mapping, `badcases.csv`,
+  `title_tfidf_items`/`content_config`, and all raw or processed data.
+- This compact package is model evidence, not a standalone official-data runtime. The clean,
+  no-data executable path is `microlens smoke`, which trains strict synthetic artifacts in a
+  temporary directory and verifies publish, version switching, rollback, events and content
+  operations.
+- Current Gate status: local implementation, artifact validation, browser evidence and
+  automation are complete. v0.3 branch push, current-SHA GitHub Actions, public visibility,
+  compact Release publication and final-ref fresh clone are all `PENDING`; none may be marked
+  PASS before the corresponding remote command finishes.
+
 ## 2026-09-01 21:16 +08:00 - G0 baseline and contract freeze
 
 - Branch: `feat/v0.2-bonus`, based on `1b0d21b`.
@@ -448,3 +482,64 @@ Each subsequent entry must include:
 - G4 evidence is complete. This log, Changelog, acceptance matrix and completion report are
   frozen in the final documentation commit; the commit is pushed only after local diff,
   test, lint and smoke revalidation.
+
+## 2026-09-02 - Python 3.11 Windows path regression found during final Gate
+
+- Command: set an isolated `UV_PROJECT_ENVIRONMENT` under the checkout, run
+  `uv sync --frozen --python 3.11`, then `uv run --frozen --python 3.11 pytest -q`.
+- Failure: all nine test modules failed during collection with `ModuleNotFoundError` for
+  `app`/`recsys`; no business assertion had run. The same interpreter could import both
+  packages from `python -c` because `sys.path[0]` was the current directory.
+- Root cause: on this Windows host, Python 3.11 decoded the editable `.pth` entry for the
+  Chinese checkout path incorrectly. The `pytest.exe` entrypoint starts with its `Scripts`
+  directory on `sys.path`, so it could not rely on the current directory fallback.
+- Fix: add `pythonpath = ["."]` to the repository pytest configuration. This makes the test
+  root explicit and independent of editable-install path decoding. Verification is repeated
+  in the same isolated Python 3.11 environment before the preparation commit.
+- Verification: the same isolated CPython 3.11.14 environment then passed all 70 tests.
+  Direct console-script startup remained affected by the editable `.pth` path, so release and
+  CI commands were standardized on `uv run --python 3.11 python -m recsys.cli ...`; both
+  `offline-smoke` and the publish/rollback online smoke returned `status=ok`. The project
+  `.python-version` was changed from 3.13 to 3.11 so default resolution matches CI and README.
+
+## 2026-09-03 - Final browser evidence correction
+
+- The first manual capture used the app browser's 1494x782 content viewport and included a
+  translation-extension control. A nominal 390x844 `runtime-health` image also showed the
+  Dashboard header instead of the named section. Both were rejected and moved to ignored
+  `tmp/invalid-screenshots-v03`.
+- A clean headless Chromium run then produced exact 1280x720/390x844 images and asserted
+  Alice/Bob list differences plus force/offline/API-filter/restore behavior.
+- Failure: the first clean `content-operations-audit` image was only the SQLAdmin login page.
+  Root cause: SQLAdmin deliberately uses a separate administrator session. The evidence and
+  video scripts now perform that second login and wait for the audit table.
+- Failure: after SQLAdmin authentication, returning to the application Dashboard lost the API
+  administrator session in this browser flow, causing a 401 during recovery. The scripts now
+  log back into the application explicitly and reacquire an admin session in `finally` before
+  restoring content/model state.
+- Final result: the clean evidence script exited 0 and wrote all 13 named screenshots. Visual
+  inspection confirmed real audit rows, the model decision table, request detail, runtime
+  warning, and no extension overlay or incoherent overlap.
+- The verified capture and final-video scripts were moved from ignored `tmp/` into tracked
+  `tools/`; otherwise the documented commands would not exist in a fresh clone.
+- A stricter console Gate then found one 404 at `/favicon.ico`. It was the browser's automatic
+  icon request, not a Feed/API failure, but still violated the zero-error acceptance rule. The
+  base template now declares the existing static SVG favicon; the clean capture is rerun with
+  console/page-error collection and document-overflow assertions enabled.
+- The first rerun against a newly started Python 3.11 service rejected the force assertion.
+  The script had formatted a UTC ISO timestamp for a `datetime-local` control, making the
+  expiry eight hours old in Asia/Shanghai. An older active force had hidden this mistake on the
+  long-running service. Both evidence and video scripts now convert to local wall time before
+  filling the control; the assertion is rerun on the new service.
+- The next force assertion still rejected for Alice even though the operation was active.
+  Her persistent demo history already contained negative feedback for item 40, and the service
+  correctly protects explicit `not_interested` feedback from a forced insertion. The operation
+  journey now uses Bob, while Alice remains the behavior/profile example; offline filtering is
+  checked through Bob's authenticated Feed API as well.
+- Final verification on the new CPython 3.11 service: the evidence script exited 0 after all
+  13 screenshots, with zero collected console warnings/errors and every document-width
+  assertion passing. Bob received item 40 at rank 1 after force; the subsequent authenticated
+  Feed omitted it after offline; restore and SQLAdmin audit were both visible.
+- Post-fix local Gate: `70 passed, 7 warnings in 29.20s`; the warnings remain limited to the
+  documented upstream Starlette and implicit conversions. Ruff, three Node syntax checks,
+  lock check, diff check, offline smoke and publish/rollback online smoke all exited 0.

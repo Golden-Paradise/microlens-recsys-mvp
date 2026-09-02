@@ -1,6 +1,6 @@
 [project]
 name = "microlens-recsys-mvp"
-version = "0.1.0"
+version = "0.3.0"
 description = "A reproducible MicroLens-50K recommendation system MVP."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -42,6 +42,7 @@ packages = ["app", "recsys"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-q"
 
 [tool.ruff]

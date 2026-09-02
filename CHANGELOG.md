@@ -2,6 +2,55 @@
 
 All notable changes, compatibility notes, and verification evidence are recorded here.
 
+## [0.3.0] - 2026-09-02
+
+### Added
+
+- Add sparse title TF-IDF pure-cold retrieval with fixed Word/`char_wb` analyzers, cold quota
+  ablation, slice metrics, NPZ persistence and validation-only policy selection.
+- Add a single-worker `ModelManager` with request snapshots, strict checksum/dimension
+  validation, atomic pointer replacement, publish/rollback, previous recovery and
+  deterministic last-known fallback.
+- Add model decision evidence, current/previous runtime state, recent request list/detail,
+  nearest-rank P50/P95, fallback rate and passive Dashboard warnings.
+- Upgrade synthetic smoke to train two real artifacts and verify authenticated publish,
+  new-request version switching and rollback in a clean temporary environment.
+- Add content-derived static asset fingerprints and final 1280x720/390x844 UI evidence.
+
+### Selection Decision
+
+- BM25 remains the serving policy: validation overall NDCG@20 `0.03713558` versus
+  `0.03697165` for the best content candidate, Word/q1.
+- Word/q1 improves pure-cold validation Recall/NDCG@20 to `0.05450237/0.01240857`;
+  `char_wb`/q5 reaches the best pure-cold Recall `0.09241706` but lowers overall NDCG to
+  `0.03511726`. Both remain measured negative trade-off experiments, not online claims.
+- Formal Test was run once after freezing and reports only BM25:
+  Recall/NDCG/Coverage@20 `0.07822/0.03338273/0.98199792`.
+
+### Compatibility
+
+- v0.1/v0.2 manifests and flat pointers remain startup-compatible. A legacy bundle without
+  a SHA256-covered `manifest.json` is marked `legacy_unverified` and cannot be republished
+  through the management API.
+- Runtime pointer and in-memory state are authoritative; the existing `model_versions` table
+  remains a repairable Dashboard projection. No database table was added.
+- Explicitly supports one Uvicorn worker. Multi-process activation consistency is not claimed.
+
+### Verification
+
+- Local: 70 tests, Ruff, Node syntax, diff check, synthetic publish/rollback smoke,
+  full-runtime strict load/rollback and browser console checks passed.
+- Official artifact: 66,730,787 bytes, 11 SHA256 entries verified; `checksums.json` SHA256
+  `c2a7e56f285f7eae486af9dfba10a7315c846ad6e9dd39226ba00cecf821f28a`.
+- The 77,575,939-byte full runtime remains local because it contains official user-history
+  derivatives. The public Release will contain a reduced BM25 model-evidence package without
+  user IDs, interaction matrices, per-user Badcases or title vectors.
+- The first 4:51 v0.3 recording was rejected during final review because it did not cover all
+  five mandatory video journeys. Final package and replacement-video hashes are recorded only
+  after the G5 Release gate succeeds.
+- Pin the project default to Python 3.11 and make pytest/CLI Gate commands use module startup,
+  avoiding Windows editable-install path decoding failures in checkouts with non-ASCII names.
+
 ## [0.2.0] - 2026-09-01
 
 ### Added
