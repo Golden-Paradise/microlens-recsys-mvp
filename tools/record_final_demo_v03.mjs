@@ -201,15 +201,15 @@ try {
     "三路 Feed 与行为闭环 · 内容运营与审计 · 时间趋势 Dashboard",
     "ALS / ItemCF / RRF / 标题 TF-IDF：<strong>validation 负责选型，formal test 只验证冻结策略</strong>",
     "checksum 校验 · 原子 pointer · 请求级 snapshot · last-known-good 回滚",
-  ], 13000);
+  ], 10000);
   await showSlide("干净环境与复现入口", [
     "<code>git clone ... && uv sync --frozen --python 3.11</code>",
     "<code>uv run --python 3.11 python -m recsys.cli smoke</code>：合成 offline + online 闭环",
     "官方全量链路：<code>python -m recsys.cli download → prepare → train --activate</code>",
     "原始数据、SQLite、密钥与题目 PDF 不进入 Git 或公开 Release",
-  ], 20000);
+  ], 15000);
   await openPublicEvidence(repoUrl, ["MicroLens", "uv sync --frozen", "python -m recsys.cli smoke"]);
-  await caption("这里是真实公开仓库 README，而不是自制命令页：clone、frozen sync、synthetic smoke 和官方数据链路都可以由评审者直接复现。", 14000);
+  await caption("这里是真实公开仓库 README，而不是自制命令页：clone、frozen sync、synthetic smoke 和官方数据链路都可以由评审者直接复现。", 10000);
 
   await login("alice");
   const aliceIds = await feedIds();
@@ -271,12 +271,12 @@ try {
 
   await login("admin");
   await page.getByRole("region", { name: "模型决策表" }).scrollIntoViewIfNeeded();
-  await caption("选型只看 validation overall NDCG@20：BM25 为 0.03714，Word/q1 为 0.03697。TF-IDF 虽把 pure-cold Recall@20 提到 0.05450，但 overall 未胜，所以没有上线。", 18000);
-  await caption("char_wb/q5 的 pure-cold Recall@20 达到 0.09242，但进一步牺牲 warm 与 overall。未入选策略的 Test 明确显示“未正式测试”，防止 test 泄漏进选型。", 14000);
+  await caption("选型只看 validation overall NDCG@20：BM25 为 0.03714，Word/q1 为 0.03697。TF-IDF 虽把 pure-cold Recall@20 提到 0.05450，但 overall 未胜，所以没有上线。", 14000);
+  await caption("char_wb/q5 的 pure-cold Recall@20 达到 0.09242，但进一步牺牲 warm 与 overall。未入选策略的 Test 明确显示“未正式测试”，防止 test 泄漏进选型。", 10000);
   await openPublicEvidence(`${repoUrl}/blob/${finalCommit}/reports/EVALUATION.md`, [
     "Validation", "Formal Test", "0.037", "0.033",
   ]);
-  await caption("仓库中固定 commit 的 EVALUATION 报告保留 validation 选型表和冻结后的 formal-test 表，区分 overall、warm、pure-cold 与未正式测试策略。", 14000);
+  await caption("仓库中固定 commit 的 EVALUATION 报告保留 validation 选型表和冻结后的 formal-test 表，区分 overall、warm、pure-cold 与未正式测试策略。", 10000);
   await page.goto(`${baseUrl}/admin/dashboard`, { waitUntil: "domcontentloaded" });
   await page.locator("#model-runtime").waitFor();
 
@@ -312,7 +312,7 @@ try {
     "576 个 pure-cold Test target 仍未被正式策略命中；TF-IDF 是 validation 正信号、overall 负实验",
     `<strong>GitHub Actions: success</strong> · <code>${escapeHtml(ciRunUrl.replace("https://github.com/Golden-Paradise/microlens-recsys-mvp/", ""))}</code>`,
     "边界：本地单 worker + SQLite Demo + 被动告警；不宣称线上因果收益或通用 SLA",
-  ], 22000);
+  ], 18000);
   completed = true;
 } finally {
   await ensureInitialState();

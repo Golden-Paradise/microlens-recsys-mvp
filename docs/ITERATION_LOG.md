@@ -543,3 +543,17 @@ Each subsequent entry must include:
 - Post-fix local Gate: `70 passed, 7 warnings in 29.20s`; the warnings remain limited to the
   documented upstream Starlette and implicit conversions. Ruff, three Node syntax checks,
   lock check, diff check, offline smoke and publish/rollback online smoke all exited 0.
+
+## 2026-09-03 - Final-video duration Gate correction
+
+- The first post-publication recording completed every scripted assertion and restored the
+  initial model/content state, but media inspection measured `00:05:09.40`. It was rejected
+  because the PDF requires a 3-5 minute video. The rejected file was 16,470,507 bytes with
+  SHA256 `8c30951d6a4f855ef0e9763810ea63423734c6a3a7f07a3d73f4b8429b342118`.
+- Root cause: 269 seconds of explicit slide/caption waits plus approximately 40 seconds of
+  real navigation, authentication and API work. Seven explanatory holds were reduced by 28
+  seconds without removing any of the five mandatory journeys or their runtime assertions.
+- Verification discipline: run `node --check tools/record_final_demo_v03.mjs`, push this fix,
+  wait for the matching main CI, then record again with that commit/run URL. Accept the
+  replacement only after codec, 1280x720 geometry, duration, black-frame and sampled-frame
+  inspection all pass.
